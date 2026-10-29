@@ -26,6 +26,7 @@ import {
   ChevronUp,
   Download,
 } from 'lucide-react';
+import { getCleanOrigin } from '../utils/urlUtils';
 import { ChannelItem, PlaylistSource, NexusEmpireItem } from '../types';
 
 interface RebuiltPlaylist {
@@ -83,8 +84,8 @@ export const NexusRebuildView: React.FC<NexusRebuildViewProps> = ({
   // Copied URL states
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Clean domain base without port :8443
-  const cleanBase = (publicBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://thenexusempire.com')).replace(/:8443$/, '');
+  // Clean domain base without port :8443 or :3000
+  const cleanBase = (publicBaseUrl ? publicBaseUrl.replace(':8443', '').replace(':3000', '') : getCleanOrigin());
 
   const fetchPlaylists = async () => {
     try {

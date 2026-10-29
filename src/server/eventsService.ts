@@ -65,23 +65,29 @@ export class EventsService {
     // Initial fetch in background
     setTimeout(() => {
       this.syncAll().catch((err) => console.error('[EventsService] Initial fetch error:', err));
-    }, 1500);
+    }, 1000);
   }
 
   private async fetchWithFallback(primaryUrl: string, backupUrl?: string, isJson = false): Promise<any> {
     try {
       const res = await fetch(primaryUrl, {
-        headers: { 'User-Agent': 'NexusEmpire/1.0' },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': '*/*',
+        },
         signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return isJson ? await res.json() : await res.text();
     } catch (primaryErr) {
       if (backupUrl) {
-        console.warn(`[EventsService] Primary URL failed (${primaryUrl}), trying backup...`);
+        console.warn(`[EventsService] Primary URL failed (${primaryUrl}), trying backup ${backupUrl}...`);
         try {
           const resBackup = await fetch(backupUrl, {
-            headers: { 'User-Agent': 'NexusEmpire/1.0' },
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': '*/*',
+            },
             signal: AbortSignal.timeout(15000),
           });
           if (!resBackup.ok) throw new Error(`HTTP ${resBackup.status}`);
@@ -110,20 +116,27 @@ export class EventsService {
     try {
       m3uText = await this.fetchWithFallback(config.primaryM3u, config.backupM3u, false);
       if (m3uText) {
-        this.m3uContent[service] = m3uText;
+        this.m3uContent[service] = m3uText.replace(/:8443/g, '').replace(/:3000/g, '');
       }
     } catch (err: any) {
       console.warn(`[EventsService] Failed to fetch ${service} M3U:`, err.message);
     }
 
-    // Extract stream mappings from M3U
-    const streamMap = new Map<string, { url: string; logo?: string; group?: string; directives?: string[] }>();
+    // Extract stream entries from M3U line-by-line cleanly
+    interface M3uStreamEntry {
+      title: string;
+      logo: string;
+      group: string;
+      url: string;
+    }
+    const m3uEntries: M3uStreamEntry[] = [];
+    const streamLookup = new Map<string, M3uStreamEntry>();
+
     if (m3uText) {
       const lines = m3uText.split(/\r?\n/);
-      let currentName = '';
+      let currentTitle = '';
       let currentLogo = '';
       let currentGroup = '';
-      let currentDirectives: string[] = [];
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -131,63 +144,82 @@ export class EventsService {
 
         if (line.startsWith('#EXTINF:')) {
           const nameMatch = line.match(/,(.+)$/);
-          currentName = nameMatch ? nameMatch[1].trim() : '';
+          currentTitle = nameMatch ? nameMatch[1].trim() : '';
 
           const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
           currentLogo = logoMatch ? logoMatch[1] : '';
 
           const groupMatch = line.match(/group-title="([^"]*)"/i);
           currentGroup = groupMatch ? groupMatch[1] : '';
-          currentDirectives = [];
-        } else if (line.startsWith('#')) {
-          currentDirectives.push(line);
         } else if (/^(https?|rtmp|udp|rtsp):\/\//i.test(line)) {
-          if (currentName) {
-            const key = currentName.toLowerCase().replace(/[^a-z0-9]/g, '');
-            streamMap.set(key, {
-              url: line,
+          const cleanUrl = line.replace(/:8443/g, '').replace(/:3000/g, '');
+          if (currentTitle) {
+            const entry: M3uStreamEntry = {
+              title: currentTitle,
               logo: currentLogo,
               group: currentGroup,
-              directives: [...currentDirectives],
-            });
-            streamMap.set(currentName.toLowerCase(), {
-              url: line,
-              logo: currentLogo,
-              group: currentGroup,
-              directives: [...currentDirectives],
-            });
+              url: cleanUrl,
+            };
+            m3uEntries.push(entry);
+
+            const normKey = currentTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!streamLookup.has(normKey)) {
+              streamLookup.set(normKey, entry);
+            }
           }
         }
       }
     }
 
-    // Parse items from JSON or M3U
+    // Extract list array from jsonData if present
+    let jsonArray: any[] = [];
+    if (Array.isArray(jsonData)) {
+      jsonArray = jsonData;
+    } else if (jsonData && typeof jsonData === 'object') {
+      jsonArray =
+        jsonData.matches ||
+        jsonData.events ||
+        jsonData.data ||
+        jsonData.items ||
+        jsonData.live_events ||
+        jsonData.channels ||
+        jsonData.live ||
+        [];
+    }
+
     const parsedEvents: SportsEventItem[] = [];
 
-    if (Array.isArray(jsonData)) {
-      for (let i = 0; i < jsonData.length; i++) {
-        const item = jsonData[i];
-        const title = item.title || item.name || item.event_name || item.match_name || `Event ${i + 1}`;
-        const key = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (jsonArray.length > 0) {
+      for (let i = 0; i < jsonArray.length; i++) {
+        const item = jsonArray[i];
+        const title = item.title || item.name || item.event_name || item.match_name || item.channel_name || `Event ${i + 1}`;
+        const normKey = title.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        let streamUrl = item.stream_url || item.url || item.adfree_url || item.adfree_stream || item.link || '';
-        let logo = item.image || item.logo || item.src || item.banner || item.poster || '';
+        let streamUrl = item.stream_url || item.url || item.adfree_url || item.adfree_stream || item.link || item.m3u8 || '';
+        if (streamUrl) streamUrl = streamUrl.replace(/:8443/g, '').replace(/:3000/g, '');
 
-        // If JSON doesn't contain playable URL, match from parsed M3U
-        const matched = streamMap.get(key) || streamMap.get(title.toLowerCase());
+        let logo = item.image || item.logo || item.src || item.banner || item.poster || item.tvg_logo || '';
+
+        // Match with M3U if streamUrl is missing
+        const matched = streamLookup.get(normKey);
         if (matched) {
           if (!streamUrl) streamUrl = matched.url;
           if (!logo && matched.logo) logo = matched.logo;
         }
 
-        const isLive = item.is_live || item.status === 'LIVE' || item.live || (title.toLowerCase().includes('live'));
+        const isLive = item.is_live || item.status === 'LIVE' || item.live || title.toLowerCase().includes('live');
 
         parsedEvents.push({
-          id: `${service}_${item.id || i}_${Date.now()}`,
+          id: `${service}_${item.id || i}_${i}`,
           title,
-          category: item.category || item.tournament_name || item.event_category || matched?.group || (service === 'fancode' ? 'Cricket & Sports' : service === 'sonyliv' ? 'Sony Sports' : 'Zee Live'),
+          category:
+            item.category ||
+            item.tournament_name ||
+            item.event_category ||
+            matched?.group ||
+            (service === 'fancode' ? 'Cricket & Sports' : service === 'sonyliv' ? 'Sony Sports' : 'Zee Live'),
           sport: item.sport || item.sport_type || 'Sports',
-          status: isLive ? 'LIVE' : (item.status || 'UPCOMING'),
+          status: isLive ? 'LIVE' : item.status || 'UPCOMING',
           startTime: item.start_time || item.startTime || item.time || '',
           endTime: item.end_time || '',
           poster: item.banner || item.poster || item.image || logo,
@@ -197,18 +229,17 @@ export class EventsService {
           raw: item,
         });
       }
-    } else if (m3uText) {
-      // If JSON was not array or failed, build events directly from M3U
+    } else if (m3uEntries.length > 0) {
+      // Build events directly from parsed M3U entries if JSON list was empty
       let idx = 0;
-      for (const [name, meta] of streamMap.entries()) {
-        if (!meta.url) continue;
+      for (const entry of m3uEntries) {
         parsedEvents.push({
           id: `${service}_m3u_${idx++}`,
-          title: name,
-          category: meta.group || `${service.toUpperCase()} Live`,
+          title: entry.title,
+          category: entry.group || `${service.toUpperCase()} Live`,
           status: 'LIVE',
-          logo: meta.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
-          url: meta.url,
+          logo: entry.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
+          url: entry.url,
           service,
         });
       }
@@ -259,10 +290,11 @@ export class EventsService {
       const logo = item.logo || item.poster || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
       const cat = item.category || `${item.service.toUpperCase()} LIVE`;
       const title = item.title;
+      const cleanStreamUrl = item.url.replace(/:8443/g, '').replace(/:3000/g, '');
 
       lines.push('');
       lines.push(`#EXTINF:-1 tvg-id="${item.id}" tvg-name="${title}" tvg-logo="${logo}" group-title="${cat}",${title}`);
-      lines.push(item.url);
+      lines.push(cleanStreamUrl);
     }
 
     return lines.join('\n');

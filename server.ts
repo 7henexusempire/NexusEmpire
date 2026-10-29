@@ -43,6 +43,7 @@ app.get('/health', (req, res) => {
 function serveM3U(req: Request, res: Response, sourceIdOrSlug?: string) {
   const group = req.query.group as string | undefined;
   const m3uContent = playlistService.generateM3U(sourceIdOrSlug, group);
+  const cleanContent = m3uContent.replace(/:8443/g, '').replace(/:3000/g, '');
 
   const cleanName = sourceIdOrSlug && sourceIdOrSlug !== 'all' ? sourceIdOrSlug : 'cartel187_all';
 
@@ -51,7 +52,26 @@ function serveM3U(req: Request, res: Response, sourceIdOrSlug?: string) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
 
-  return res.send(m3uContent);
+  return res.send(cleanContent);
+}
+
+function serveEventM3U(service: 'fancode' | 'sonyliv' | 'zee5' | 'all', res: Response) {
+  const m3u = eventsService.generateM3U(service);
+  const cleanContent = m3u.replace(/:8443/g, '').replace(/:3000/g, '');
+
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', `inline; filename="${service}.m3u"`);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+
+  return res.send(cleanContent);
+}
+
+function serveEventJSON(service: 'fancode' | 'sonyliv' | 'zee5' | 'all', res: Response) {
+  const data = service === 'all' ? eventsService.getAllEvents() : eventsService.getEvents(service);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.json(data);
 }
 
 // Helper to serve JSON representation
@@ -364,26 +384,58 @@ app.get('/playlist/:slug.m3u8', (req, res) => serveM3U(req, res, req.params.slug
 app.get('/api/playlist/:slug.json', (req, res) => serveJSON(req, res, req.params.slug));
 app.get('/playlist/:slug.json', (req, res) => serveJSON(req, res, req.params.slug));
 
-// Direct root playlist alias (e.g. /cartelx.m3u or /zeotv.m3u)
+// Explicit event root shortcuts
+app.get('/fancode.m3u', (req, res) => serveEventM3U('fancode', res));
+app.get('/fancode.m3u8', (req, res) => serveEventM3U('fancode', res));
+app.get('/fancode.json', (req, res) => serveEventJSON('fancode', res));
+
+app.get('/sonyliv.m3u', (req, res) => serveEventM3U('sonyliv', res));
+app.get('/sonyliv.m3u8', (req, res) => serveEventM3U('sonyliv', res));
+app.get('/sonyliv.json', (req, res) => serveEventJSON('sonyliv', res));
+
+app.get('/sony.m3u', (req, res) => serveEventM3U('sonyliv', res));
+app.get('/sony.m3u8', (req, res) => serveEventM3U('sonyliv', res));
+app.get('/sony.json', (req, res) => serveEventJSON('sonyliv', res));
+
+app.get('/zee5.m3u', (req, res) => serveEventM3U('zee5', res));
+app.get('/zee5.m3u8', (req, res) => serveEventM3U('zee5', res));
+app.get('/zee5.json', (req, res) => serveEventJSON('zee5', res));
+
+// Direct root playlist alias
 app.get('/:slug.m3u', (req, res, next) => {
   const { slug } = req.params;
+  if (slug === 'fancode') return serveEventM3U('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony') return serveEventM3U('sonyliv', res);
+  if (slug === 'zee5') return serveEventM3U('zee5', res);
   if (slug === 'cloudstream') return serveCloudStreamM3U(req, res);
+  if (slug === 'skystream') return serveSkyStreamM3U(req, res);
+  if (slug === 'stremio' || slug === 'nuvio-stremio') return serveStremioM3U(req, res);
+  if (slug === 'cncverse') return serveCNCVerseM3U(req, res);
   if (['api', 'health', 'assets', 'cloudstream'].includes(slug)) return next();
   return serveM3U(req, res, slug);
 });
 
 app.get('/:slug.m3u8', (req, res, next) => {
   const { slug } = req.params;
+  if (slug === 'fancode') return serveEventM3U('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony') return serveEventM3U('sonyliv', res);
+  if (slug === 'zee5') return serveEventM3U('zee5', res);
   if (slug === 'cloudstream') return serveCloudStreamM3U(req, res);
+  if (slug === 'skystream') return serveSkyStreamM3U(req, res);
+  if (slug === 'stremio' || slug === 'nuvio-stremio') return serveStremioM3U(req, res);
+  if (slug === 'cncverse') return serveCNCVerseM3U(req, res);
   if (['api', 'health', 'assets', 'cloudstream'].includes(slug)) return next();
   return serveM3U(req, res, slug);
 });
 
 app.get('/:slug.json', (req, res, next) => {
   const { slug } = req.params;
+  if (slug === 'fancode') return serveEventJSON('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony') return serveEventJSON('sonyliv', res);
+  if (slug === 'zee5') return serveEventJSON('zee5', res);
   if (slug === 'cloudstream') return serveCloudStreamJSON(req, res);
   if (['api', 'health', 'assets', 'cloudstream'].includes(slug)) return next();
-  return next();
+  return serveJSON(req, res, slug);
 });
 
 // ============================================================

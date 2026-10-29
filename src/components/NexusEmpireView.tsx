@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import { NexusEmpireItem, ChannelItem } from '../types';
 
+import { getCleanOrigin } from '../utils/urlUtils';
+
 interface NexusEmpireViewProps {
   onNotify: (type: 'success' | 'error' | 'info', title: string, msg?: string) => void;
   publicBaseUrl?: string;
@@ -74,7 +76,7 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
     groupSuffix: '',
   });
 
-  const baseUrl = publicBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+  const baseUrl = (publicBaseUrl ? publicBaseUrl.replace(':8443', '').replace(':3000', '') : getCleanOrigin());
 
   const fetchData = async () => {
     try {

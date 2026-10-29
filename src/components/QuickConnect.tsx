@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { PlaylistSource } from '../types';
 
+import { getCleanOrigin } from '../utils/urlUtils';
+
 interface QuickConnectProps {
   totalChannels: number;
   activeChannels: number;
@@ -31,10 +33,8 @@ export const QuickConnect: React.FC<QuickConnectProps> = ({
 }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Clean base URL without port :8443
-  const cleanBase = (
-    publicBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://thenexusempire.com')
-  ).replace(/:8443$/, '');
+  // Clean base URL without port :8443 or :3000
+  const cleanBase = (publicBaseUrl ? publicBaseUrl.replace(':8443', '').replace(':3000', '') : getCleanOrigin());
 
   const copyToClipboard = async (text: string, key: string) => {
     try {

@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { SportsEventItem } from '../types';
 
+import { getCleanOrigin } from '../utils/urlUtils';
+
 interface Zee5ViewProps {
   onNotify: (type: 'success' | 'error' | 'info' | 'loading', title: string, message?: string) => void;
   publicBaseUrl?: string;
@@ -33,7 +35,7 @@ export const Zee5View: React.FC<Zee5ViewProps> = ({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const cleanBase = (publicBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/:8443$/, '');
+  const cleanBase = (publicBaseUrl ? publicBaseUrl.replace(':8443', '').replace(':3000', '') : getCleanOrigin());
   const m3uUrl = `${cleanBase}/zee5.m3u`;
 
   const fetchEvents = async () => {

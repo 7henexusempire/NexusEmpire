@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileCode, Check, X, Copy, ExternalLink, Loader2 } from 'lucide-react';
+import { getCleanOrigin } from '../utils/urlUtils';
 
 interface UploadM3UModalProps {
   onClose: () => void;
@@ -65,7 +66,7 @@ export const UploadM3UModal: React.FC<UploadM3UModalProps> = ({ onClose, onUploa
         throw new Error(data.error || 'Failed to upload playlist');
       }
 
-      const cleanOrigin = window.location.origin.replace(':8443', '');
+      const cleanOrigin = getCleanOrigin();
       const fullUrl = `${cleanOrigin}${data.m3uUrl}`;
       setResultUrl(fullUrl);
       onUploaded({
