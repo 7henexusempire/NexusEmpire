@@ -1,553 +1,1109 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import express, { Request, Response } from 'express';
-import fs from 'fs';
+import cors from 'cors';
+import compression from 'compression';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { 
-  ChannelItem, 
-  PlaylistSource, 
-  NexusEmpireItem, 
-  PlaylistSettings, 
-  CustomizationData, 
-  RebuiltPlaylist 
-} from './src/types';
-import { parseM3U } from './src/utils/m3uParser';
-import { deduplicateChannelList, normalizeStreamUrl } from './src/utils/deduplicator';
+import { playlistService } from './src/server/playlistService';
+import { rebuildService } from './src/server/rebuildService';
+import { cloudstreamService } from './src/server/cloudstreamService';
+import { skystreamService } from './src/server/skystreamService';
+import { stremioNuvioService } from './src/server/stremioNuvioService';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
+const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
-const PORT = 3000;
-const DATA_DIR = path.resolve(__dirname, 'data');
-const CUSTOMIZATIONS_FILE = path.join(DATA_DIR, 'customizations.json');
-const CACHE_FILE = path.join(DATA_DIR, 'cache.json');
-const REBUILT_FILE = path.join(DATA_DIR, 'rebuilt-playlists.json');
+// Middlewares
+app.use(cors({ origin: '*' }));
+app.use(compression());
+app.use(express.json({ limit: '60mb' }));
+app.use(express.urlencoded({ extended: true, limit: '60mb' }));
 
-// Ensure directories exist
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-const DEFAULT_SOURCES: PlaylistSource[] = [
-  {
-    id: 'tivimate-hjh',
-    slug: 'tivimate-hjh',
-    name: 'Tivimate Playlist',
-    url: 'https://hjh-545.pages.dev/',
-    type: 'remote',
-    enabled: true,
-    lastSyncTime: null,
-    status: 'idle',
-    errorMessage: null,
-    channelCount: 0,
-  },
-  {
-    id: 'plugx-vip',
-    slug: 'plugx-vip',
-    name: 'Plugx VIP',
-    url: 'https://plugxvipplaylist.lovable.app/api/playlist',
-    type: 'remote',
-    enabled: true,
-    lastSyncTime: null,
-    status: 'idle',
-    errorMessage: null,
-    channelCount: 0,
-  },
-  {
-    id: 'stalkmax',
-    slug: 'stalkmax',
-    name: 'StalkMax Nexus',
-    url: 'https://stalkmax.7henexusempire.workers.dev/playlist.m3u?pass=Nexus07',
-    type: 'remote',
-    enabled: true,
-    lastSyncTime: null,
-    status: 'idle',
-    errorMessage: null,
-    channelCount: 0,
-  },
-  {
-    id: 'p1stalk',
-    slug: 'p1stalk',
-    name: 'P1Stalk Nexus',
-    url: 'https://p1stalk.7henexusempire.workers.dev/playlist.m3u?pass=Nexus07',
-    type: 'remote',
-    enabled: true,
-    lastSyncTime: null,
-    status: 'idle',
-    errorMessage: null,
-    channelCount: 0,
-  },
-  {
-    id: 'lrl45',
-    slug: 'lrl45',
-    name: 'LRL45 Channel',
-    url: 'https://server.lrl45.workers.dev/channel/raw?=m3u',
-    type: 'remote',
-    enabled: true,
-    lastSyncTime: null,
-    status: 'idle',
-    errorMessage: null,
-    channelCount: 0,
-  },
-  {
-    id: 'p1stalk-php',
-    slug: 'p1stalk-php',
-    name: 'P1Stalk PHP',
-    url: 'https://p1stalk.7henexusempire.workers.dev/playlist.php?pass=Nexus07',
-    type: 'remote',
-    enabled: true,
-    lastSyncTime: null,
-    status: 'idle',
-    errorMessage: null,
-    channelCount: 0,
-  },
-  // Sony / Fancode / Zee5
-  {
-    id: 'fancode-m3u',
-    slug: 'fancode-m3u',
-    name: 'Fancode Live',
-    url: 'https://raw.githubusercontent.com/doctor-8trange/zyphx8/refs/heads/main/data/fancode.m3u',
-    type: 'remote',
-    enabled: true,
-    lastSyncTime: null,
-    status: 'idle',
-    errorMessage: null,
-    channelCount: 0,
-  },
-  {
-    id: 'sony-m3u',
-    slug: 'sony-m3u',
-    name: 'Sony Live',
-    url: 'https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u',
-    type: 'remote',
-    enabled: true,
-    lastSyncTime: null,
-    status: 'idle',
-    errorMessage: null,
-    channelCount: 0,
-  },
-  {
-    id: 'zee5-m3u',
-    slug: 'zee5-m3u',
-    name: 'Zee5 Live',
-    url: 'https://raw.githubusercontent.com/doctor-8trange/quarnex/refs/heads/main/data/zee5.m3u',
-    type: 'remote',
-    enabled: true,
-    lastSyncTime: null,
-    status: 'idle',
-    errorMessage: null,
-    channelCount: 0,
-  }
-];
-
-const INITIAL_NEXUSEMPIRE: NexusEmpireItem[] = [
-  {
-    id: 'zee',
-    name: 'Zee Network Live',
-    uri: 'streambox://open/8003bfd97ec3d87c8df2280494c3aa26',
-    hash: '8003bfd97ec3d87c8df2280494c3aa26',
-    slug: 'zee',
-    m3uSlug: 'zee',
-    category: 'Entertainment',
-    channelCount: 0,
-    status: 'ready',
-    lastUpdated: null,
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png',
-    description: 'Zee Network live streams for AniTV & StreamBox.',
-    enabled: true,
-  },
-  {
-    id: 'sony',
-    name: 'Sony Network All',
-    uri: 'streambox://open/4397be6aa83e687053eeb1f55b4f9f48',
-    hash: '4397be6aa83e687053eeb1f55b4f9f48',
-    slug: 'sony',
-    m3uSlug: 'sony',
-    category: 'Entertainment',
-    channelCount: 0,
-    status: 'ready',
-    lastUpdated: null,
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png',
-    description: 'Sony Network channels including Ten Sports.',
-    enabled: true,
-  },
-  {
-    id: 'matchevents',
-    name: 'All Match Events',
-    uri: 'streambox://open/dbd3d88df5fe1594d5d64afb3b6704be',
-    hash: 'dbd3d88df5fe1594d5d64afb3b6704be',
-    slug: 'matchevents',
-    m3uSlug: 'matchevents',
-    category: 'Sports',
-    channelCount: 0,
-    status: 'ready',
-    lastUpdated: null,
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png',
-    description: 'Live match events and sports schedules.',
-    enabled: true,
-  },
-  {
-    id: 'willow',
-    name: 'Willow TV Channel',
-    uri: 'streambox://open/255cfab9f98da87dab11a6e0a337279e',
-    hash: '255cfab9f98da87dab11a6e0a337279e',
-    slug: 'willow',
-    m3uSlug: 'willow',
-    category: 'Sports',
-    channelCount: 0,
-    status: 'ready',
-    lastUpdated: null,
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png',
-    description: 'Willow TV cricket and sports channel.',
-    enabled: true,
-  },
-  {
-    id: 'alltv',
-    name: 'All TV Channels',
-    uri: 'streambox://open/188140cf39bd8728cfa2f19290218e2b',
-    hash: '188140cf39bd8728cfa2f19290218e2b',
-    slug: 'alltv',
-    m3uSlug: 'alltv',
-    category: 'Master',
-    channelCount: 0,
-    status: 'ready',
-    lastUpdated: null,
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png',
-    description: 'Combined master playlist for all TV channels.',
-    enabled: true,
-  },
-  {
-    id: 'adult',
-    name: '18+ Premium Content',
-    uri: 'streambox://open/d45fee7c264f4c64e29a1c5162d8ad8e',
-    hash: 'd45fee7c264f4c64e29a1c5162d8ad8e',
-    slug: 'adult',
-    m3uSlug: 'adult',
-    category: 'Premium',
-    channelCount: 0,
-    status: 'ready',
-    lastUpdated: null,
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png',
-    description: 'Premium quality adult content for version 4.0.0+.',
-    enabled: true,
-  }
-];
-
-class PlaylistService {
-  public sources: PlaylistSource[] = [...DEFAULT_SOURCES];
-  public nexusempireItems: NexusEmpireItem[] = [...INITIAL_NEXUSEMPIRE];
-  public channelsBySource: Record<string, ChannelItem[]> = {};
-  public channelOverrides: Record<string, Partial<ChannelItem>> = {};
-  public settings: PlaylistSettings = {
-    syncIntervalMinutes: 15,
-    autoSync: true,
-    userAgent: 'TiviMate/5.1.0 (Linux; Android 12) curl/8.0.0',
-    customTvgUrl: 'https://avkb.short.gy/jioepg.xml.gz',
-    publicBaseUrl: '',
-    zeotvStripSuffix: true,
-    zeotvRemoveGroupLogo: false,
-    appTitle: 'Nexus Empire',
-    dedupMode: 'smart',
-  };
-  public lastSyncTime: Date | null = null;
-  private syncTimer: NodeJS.Timeout | null = null;
-
-  constructor() {
-    this.loadData();
-    this.init();
-  }
-
-  private loadData() {
-    if (fs.existsSync(CUSTOMIZATIONS_FILE)) {
-      try {
-        const data: CustomizationData = JSON.parse(fs.readFileSync(CUSTOMIZATIONS_FILE, 'utf-8'));
-        if (data.sources) this.sources = data.sources;
-        if (data.channelOverrides) this.channelOverrides = data.channelOverrides;
-        if (data.settings) this.settings = { ...this.settings, ...data.settings };
-        if (data.nexusempireItems) this.nexusempireItems = data.nexusempireItems;
-      } catch (e) {
-        console.error('Failed to load customizations:', e);
-      }
-    }
-    if (fs.existsSync(CACHE_FILE)) {
-      try {
-        const cache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
-        this.channelsBySource = cache.channelsBySource || {};
-        this.lastSyncTime = cache.lastSyncTime ? new Date(cache.lastSyncTime) : null;
-      } catch (e) {
-        console.error('Failed to load cache:', e);
-      }
-    }
-  }
-
-  private saveData() {
-    const data: CustomizationData = {
-      sources: this.sources,
-      channelOverrides: this.channelOverrides,
-      groupRenames: {},
-      groupLogos: {},
-      groupVisibility: {},
-      customChannels: [],
-      settings: this.settings,
-      nexusempireItems: this.nexusempireItems,
-    };
-    fs.writeFileSync(CUSTOMIZATIONS_FILE, JSON.stringify(data, null, 2));
-    
-    const cache = {
-      channelsBySource: this.channelsBySource,
-      lastSyncTime: this.lastSyncTime ? this.lastSyncTime.toISOString() : null,
-    };
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(cache));
-  }
-
-  public async init() {
-    this.scheduleSync();
-    if (!this.lastSyncTime) {
-      await this.syncAll();
-    }
-  }
-
-  public scheduleSync() {
-    if (this.syncTimer) clearInterval(this.syncTimer);
-    if (this.settings.autoSync) {
-      this.syncTimer = setInterval(() => this.syncAll(), this.settings.syncIntervalMinutes * 60 * 1000);
-    }
-  }
-
-  public async syncAll() {
-    console.log('[Sync] Starting background sync...');
-    for (const source of this.sources) {
-      if (source.enabled) {
-        await this.syncSource(source.id);
-      }
-    }
-    this.lastSyncTime = new Date();
-    this.saveData();
-    console.log('[Sync] Completed.');
-  }
-
-  public async syncSource(sourceId: string) {
-    const source = this.sources.find(s => s.id === sourceId);
-    if (!source) return;
-
-    source.status = 'fetching';
-    try {
-      const response = await fetch(source.url, {
-        headers: { 'User-Agent': this.settings.userAgent }
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const text = await response.text();
-      const { channels } = parseM3U(text, sourceId);
-      
-      this.channelsBySource[sourceId] = channels;
-      source.channelCount = channels.length;
-      source.lastSyncTime = new Date().toISOString();
-      source.status = 'success';
-      source.errorMessage = null;
-    } catch (e: any) {
-      source.status = 'error';
-      source.errorMessage = e.message;
-      console.error(`[Sync] Failed source ${source.name}:`, e);
-    }
-  }
-
-  public getAllChannels(dedup = true): ChannelItem[] {
-    let all: ChannelItem[] = [];
-    for (const sourceId in this.channelsBySource) {
-      const source = this.sources.find(s => s.id === sourceId);
-      if (source?.enabled) {
-        all = all.concat(this.channelsBySource[sourceId]);
-      }
-    }
-
-    // Apply overrides
-    all = all.map(ch => {
-      const override = this.channelOverrides[ch.id];
-      if (override) {
-        return { ...ch, ...override };
-      }
-      return ch;
-    });
-
-    if (dedup && this.settings.dedupMode !== 'off') {
-      return deduplicateChannelList(all, { mode: this.settings.dedupMode }).channels;
-    }
-    return all;
-  }
-
-  public generateM3U(channels: ChannelItem[], title = 'Nexus Empire'): string {
-    const lines = [
-      '#EXTM3U url-tvg="' + this.settings.customTvgUrl + '" x-tvg-url="' + this.settings.customTvgUrl + '" refresh="1800"',
-      `# ${title} | Generated ${new Date().toISOString()}`,
-      '# Powered by Nexus Empire Engine'
-    ];
-
-    for (const ch of channels) {
-      if (!ch.enabled) continue;
-      
-      if (ch.preDirectives) lines.push(...ch.preDirectives);
-      
-      const logo = ch.customLogo || ch.tvgLogo || '';
-      const group = ch.customGroup || ch.groupTitle;
-      const name = ch.customName || ch.name;
-      
-      let inf = `#EXTINF:-1 tvg-id="${ch.tvgId || ''}" tvg-name="${ch.tvgName || name}" tvg-logo="${logo}" group-title="${group}"`;
-      if (ch.tvgChno) inf += ` tvg-chno="${ch.tvgChno}"`;
-      if (ch.groupLogo) inf += ` group-logo="${ch.groupLogo}"`;
-      
-      lines.push(`${inf},${name}`);
-      
-      if (ch.directives) lines.push(...ch.directives);
-      
-      let streamUrl = ch.customUrl || ch.url;
-      // If we have a public base URL, we could potentially proxy or rewrite, 
-      // but for now we just use the provided URL.
-      lines.push(streamUrl);
-    }
-    return lines.join('\n');
-  }
-}
-
-class RebuildService {
-  private playlists: RebuiltPlaylist[] = [];
-
-  constructor() {
-    this.load();
-  }
-
-  private load() {
-    if (fs.existsSync(REBUILT_FILE)) {
-      try {
-        this.playlists = JSON.parse(fs.readFileSync(REBUILT_FILE, 'utf-8'));
-      } catch (e) {
-        console.error('Failed to load rebuilt playlists:', e);
-      }
-    }
-  }
-
-  private save() {
-    fs.writeFileSync(REBUILT_FILE, JSON.stringify(this.playlists, null, 2));
-  }
-
-  public getAll() { return this.playlists; }
-  public getById(id: string) { return this.playlists.find(p => p.id === id || p.slug === id); }
-  
-  public create(data: Partial<RebuiltPlaylist>) {
-    const p: RebuiltPlaylist = {
-      id: `rb_${Date.now()}`,
-      slug: data.name?.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'custom',
-      name: data.name || 'Untitled',
-      description: data.description || '',
-      targetType: 'normal',
-      targetSourceOrCategory: 'all',
-      customCategories: data.customCategories || { 'General': [] },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    this.playlists.push(p);
-    this.save();
-    return p;
-  }
-
-  public update(id: string, updates: Partial<RebuiltPlaylist>) {
-    const p = this.playlists.find(x => x.id === id);
-    if (p) {
-      Object.assign(p, updates);
-      p.updatedAt = new Date().toISOString();
-      this.save();
-    }
-    return p;
-  }
-
-  public delete(id: string) {
-    this.playlists = this.playlists.filter(p => p.id !== id);
-    this.save();
-  }
-}
-
-const playlistService = new PlaylistService();
-const rebuildService = new RebuildService();
-
-// API Routes
-app.get('/api/status', (req, res) => {
+// Health Check
+app.get('/health', (req, res) => {
   res.json({
-    lastSync: playlistService.lastSyncTime,
-    sources: playlistService.sources,
-    nexusempire: playlistService.nexusempireItems,
+    status: 'ok',
+    app: 'Cartel 187',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
   });
 });
 
-app.get('/api/channels', (req, res) => {
-  res.json(playlistService.getAllChannels());
+// Helper to serve M3U with proper headers
+function serveM3U(req: Request, res: Response, sourceIdOrSlug?: string) {
+  const group = req.query.group as string | undefined;
+  const m3uContent = playlistService.generateM3U(sourceIdOrSlug, group);
+
+  const cleanName = sourceIdOrSlug && sourceIdOrSlug !== 'all' ? sourceIdOrSlug : 'cartel187_all';
+
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', `inline; filename="${cleanName}.m3u"`);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
+
+  return res.send(m3uContent);
+}
+
+// Helper to serve JSON representation
+function serveJSON(req: Request, res: Response, sourceIdOrSlug?: string) {
+  const group = req.query.group as string | undefined;
+  const jsonContent = playlistService.generateJSON(sourceIdOrSlug, group);
+
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
+
+  return res.json(jsonContent);
+}
+
+// ============================================================
+// 1. COMBINED & ROOT PLAYLIST ENDPOINTS
+// ============================================================
+app.get('/playlist.m3u', (req, res) => serveM3U(req, res, 'all'));
+app.get('/playlist.m3u8', (req, res) => serveM3U(req, res, 'all'));
+app.get('/all.m3u', (req, res) => serveM3U(req, res, 'all'));
+app.get('/all.m3u8', (req, res) => serveM3U(req, res, 'all'));
+
+app.get('/api/playlist/all.m3u', (req, res) => serveM3U(req, res, 'all'));
+app.get('/api/playlist/all.m3u8', (req, res) => serveM3U(req, res, 'all'));
+app.get('/playlist/all.m3u', (req, res) => serveM3U(req, res, 'all'));
+app.get('/playlist/all.m3u8', (req, res) => serveM3U(req, res, 'all'));
+
+app.get('/api/playlist.json', (req, res) => serveJSON(req, res, 'all'));
+app.get('/playlist.json', (req, res) => serveJSON(req, res, 'all'));
+app.get('/api/playlist/all.json', (req, res) => serveJSON(req, res, 'all'));
+app.get('/playlist/all.json', (req, res) => serveJSON(req, res, 'all'));
+
+// ============================================================
+// 2. NEXUSEMPIRE & ANINEXUS STREAMBOX ENDPOINTS
+// ============================================================
+function serveNexusEmpireM3U(req: Request, res: Response, slug: string) {
+  const content = playlistService.generateNexusEmpireM3U(slug);
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', `inline; filename="nexusempire_${slug}.m3u"`);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
+  return res.send(content);
+}
+
+function serveNexusEmpireJSON(req: Request, res: Response, slug: string) {
+  const data = playlistService.generateNexusEmpireJSON(slug);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.json(data);
+}
+
+// NexusEmpire Primary Routes
+app.get('/api/nexusempire', (req: Request, res: Response) => {
+  return res.json(playlistService.getNexusEmpireItems());
 });
 
-app.post('/api/sync', async (req, res) => {
-  await playlistService.syncAll();
-  res.json({ success: true });
+app.get('/nexusempire/all.m3u', (req, res) => serveNexusEmpireM3U(req, res, 'all'));
+app.get('/nexusempire/all.m3u8', (req, res) => serveNexusEmpireM3U(req, res, 'all'));
+app.get('/api/nexusempire/all.m3u', (req, res) => serveNexusEmpireM3U(req, res, 'all'));
+app.get('/api/nexusempire/all.m3u8', (req, res) => serveNexusEmpireM3U(req, res, 'all'));
+app.get('/api/nexusempire/all.json', (req, res) => serveNexusEmpireJSON(req, res, 'all'));
+app.get('/nexusempire/all.json', (req, res) => serveNexusEmpireJSON(req, res, 'all'));
+
+app.get('/nexusempire/:slug.m3u', (req, res) => serveNexusEmpireM3U(req, res, req.params.slug));
+app.get('/nexusempire/:slug.m3u8', (req, res) => serveNexusEmpireM3U(req, res, req.params.slug));
+app.get('/api/nexusempire/:slug.m3u', (req, res) => serveNexusEmpireM3U(req, res, req.params.slug));
+app.get('/api/nexusempire/:slug.m3u8', (req, res) => serveNexusEmpireM3U(req, res, req.params.slug));
+app.get('/api/nexusempire/:slug.json', (req, res) => serveNexusEmpireJSON(req, res, req.params.slug));
+
+// Backward Compatibility for AniNexus clients
+app.get('/api/aninexus', (req: Request, res: Response) => {
+  return res.json(playlistService.getNexusEmpireItems());
+});
+app.get('/api/aninexus/all.m3u', (req, res) => serveNexusEmpireM3U(req, res, 'all'));
+app.get('/api/aninexus/all.m3u8', (req, res) => serveNexusEmpireM3U(req, res, 'all'));
+app.get('/api/aninexus/all.json', (req, res) => serveNexusEmpireJSON(req, res, 'all'));
+app.get('/api/aninexus/:slug.m3u', (req, res) => serveNexusEmpireM3U(req, res, req.params.slug));
+app.get('/api/aninexus/:slug.m3u8', (req, res) => serveNexusEmpireM3U(req, res, req.params.slug));
+app.get('/api/aninexus/:slug.json', (req, res) => serveNexusEmpireJSON(req, res, req.params.slug));
+
+// NexusEmpire Category Management APIs
+app.get('/api/nexusempire/categories', (req: Request, res: Response) => {
+  return res.json(playlistService.getNexusEmpireCategories());
 });
 
-app.post('/api/channels/:id/override', (req, res) => {
-  const { id } = req.params;
-  playlistService.channelOverrides[id] = { ...playlistService.channelOverrides[id], ...req.body };
-  res.json({ success: true });
+app.post('/api/nexusempire/categories', (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Category name is required' });
+    const ok = playlistService.createNexusEmpireCategory(name);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
-// Nexus Empire Endpoints
-app.get('/api/nexusempire', (req, res) => {
-  res.json(playlistService.nexusempireItems);
+app.put('/api/nexusempire/categories/rename', (req: Request, res: Response) => {
+  try {
+    const { oldName, newName } = req.body;
+    if (!oldName || !newName) return res.status(400).json({ error: 'oldName and newName are required' });
+    const ok = playlistService.renameNexusEmpireCategory(oldName, newName);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/:slug.m3u', (req, res) => {
+// NexusEmpire Items / Streams Management APIs
+app.post('/api/nexusempire/items', (req: Request, res: Response) => {
+  try {
+    const { name, uri, slug, category, logo, description } = req.body;
+    if (!name || !uri) return res.status(400).json({ error: 'Name and stream URI are required' });
+    const created = playlistService.addNexusEmpireItem({ name, uri, slug, category, logo, description });
+    return res.json({ success: true, item: created });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/nexusempire/items/:id', (req: Request, res: Response) => {
+  try {
+    const updated = playlistService.updateNexusEmpireItem(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: 'Stream item not found' });
+    return res.json({ success: true, item: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/nexusempire/items/:id', (req: Request, res: Response) => {
+  try {
+    const ok = playlistService.deleteNexusEmpireItem(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nexusempire/items/:id/toggle', (req: Request, res: Response) => {
+  try {
+    const { enabled } = req.body;
+    const updated = playlistService.updateNexusEmpireItem(req.params.id, { enabled });
+    if (!updated) return res.status(404).json({ error: 'Stream item not found' });
+    return res.json({ success: true, item: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nexusempire/move', (req: Request, res: Response) => {
+  try {
+    const { itemIds, category } = req.body;
+    if (!Array.isArray(itemIds) || !category) {
+      return res.status(400).json({ error: 'itemIds array and target category are required' });
+    }
+    const moved = playlistService.moveNexusEmpireItemsToCategory(itemIds, category);
+    return res.json({ success: true, movedCount: moved });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/nexusempire/items/:id/channels', (req: Request, res: Response) => {
+  try {
+    const result = playlistService.getChannelsForNexusEmpireCategory(req.params.id, true);
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// 2B. NEXUS REBUILD STUDIO ENDPOINTS
+// ============================================================
+app.get('/api/rebuilt', (req: Request, res: Response) => {
+  return res.json(rebuildService.getAll());
+});
+
+app.post('/api/rebuilt', (req: Request, res: Response) => {
+  try {
+    const { name, description, slug, targetType, targetSourceOrCategory, customCategories } = req.body;
+    if (!name || !targetType) {
+      return res.status(400).json({ error: 'Name and targetType are required' });
+    }
+    const created = rebuildService.create({
+      name,
+      description,
+      slug,
+      targetType,
+      targetSourceOrCategory: targetSourceOrCategory || 'all',
+      customCategories: customCategories || { 'Main Bouquet': [] },
+    });
+    return res.json({ success: true, playlist: created });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/rebuilt/:id', (req: Request, res: Response) => {
+  try {
+    const updated = rebuildService.update(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: 'Rebuilt playlist not found' });
+    return res.json({ success: true, playlist: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/rebuilt/:id', (req: Request, res: Response) => {
+  try {
+    const ok = rebuildService.delete(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rebuilt/:slug.m3u', (req: Request, res: Response) => {
+  const allChannels = playlistService.getAllChannels('all');
+  const m3u = rebuildService.generateM3U(req.params.slug, allChannels);
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', `inline; filename="${req.params.slug}.m3u"`);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.send(m3u);
+});
+
+app.get('/api/rebuilt/:slug.json', (req: Request, res: Response) => {
+  const p = rebuildService.getById(req.params.slug);
+  if (!p) return res.status(404).json({ error: 'Playlist not found' });
+  const allChannels = playlistService.getAllChannels('all');
+  const channelMap = new Map(allChannels.map((c) => [c.id, c]));
+  const result: any = { ...p, categories: {} };
+  for (const [cat, ids] of Object.entries(p.customCategories)) {
+    result.categories[cat] = ids.map((id) => channelMap.get(id)).filter(Boolean);
+  }
+  return res.json(result);
+});
+
+// ============================================================
+// 3. INDIVIDUAL PLAYLIST ENDPOINTS (by custom slug or ID, e.g. /api/playlist/nexus-vip.m3u)
+// ============================================================
+app.get('/api/playlist/:slug.m3u', (req, res) => serveM3U(req, res, req.params.slug));
+app.get('/api/playlist/:slug.m3u8', (req, res) => serveM3U(req, res, req.params.slug));
+app.get('/playlist/:slug.m3u', (req, res) => serveM3U(req, res, req.params.slug));
+app.get('/playlist/:slug.m3u8', (req, res) => serveM3U(req, res, req.params.slug));
+
+app.get('/api/playlist/:slug.json', (req, res) => serveJSON(req, res, req.params.slug));
+app.get('/playlist/:slug.json', (req, res) => serveJSON(req, res, req.params.slug));
+
+// Direct root playlist alias (e.g. /cartelx.m3u or /zeotv.m3u)
+app.get('/:slug.m3u', (req, res, next) => {
   const { slug } = req.params;
-  
-  // Check if it's a Nexus Empire item
-  const neItem = playlistService.nexusempireItems.find(i => i.slug === slug || i.m3uSlug === slug);
-  if (neItem) {
-    const lines = [
-      '#EXTM3U',
-      `# ${neItem.name} | Streambox Protocol`,
-      `#EXTINF:-1 tvg-logo="${neItem.logo}" group-title="Nexus Empire",${neItem.name}`,
-      neItem.uri
-    ];
-    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-    return res.send(lines.join('\n'));
-  }
-
-  // Check if it's a rebuilt playlist
-  const rebuilt = rebuildService.getById(slug);
-  if (rebuilt) {
-    const channels = playlistService.getAllChannels();
-    const m3u = playlistService.generateM3U(channels.filter(c => {
-      return Object.values(rebuilt.customCategories).flat().includes(c.id);
-    }), rebuilt.name);
-    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-    return res.send(m3u);
-  }
-
-  if (slug === 'all') {
-    const m3u = playlistService.generateM3U(playlistService.getAllChannels());
-    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-    return res.send(m3u);
-  }
-
-  res.status(404).send('Playlist not found');
+  if (slug === 'cloudstream') return serveCloudStreamM3U(req, res);
+  if (['api', 'health', 'assets', 'cloudstream'].includes(slug)) return next();
+  return serveM3U(req, res, slug);
 });
 
-// Rebuild Endpoints
-app.get('/api/rebuild', (req, res) => res.json(rebuildService.getAll()));
-app.post('/api/rebuild', (req, res) => res.json(rebuildService.create(req.body)));
-app.put('/api/rebuild/:id', (req, res) => res.json(rebuildService.update(req.params.id, req.body)));
-app.delete('/api/rebuild/:id', (req, res) => {
-  rebuildService.delete(req.params.id);
-  res.json({ success: true });
+app.get('/:slug.m3u8', (req, res, next) => {
+  const { slug } = req.params;
+  if (slug === 'cloudstream') return serveCloudStreamM3U(req, res);
+  if (['api', 'health', 'assets', 'cloudstream'].includes(slug)) return next();
+  return serveM3U(req, res, slug);
 });
+
+app.get('/:slug.json', (req, res, next) => {
+  const { slug } = req.params;
+  if (slug === 'cloudstream') return serveCloudStreamJSON(req, res);
+  if (['api', 'health', 'assets', 'cloudstream'].includes(slug)) return next();
+  return next();
+});
+
+// ============================================================
+// 4. STATUS & SYNC CONTROLS
+// ============================================================
+app.get('/api/status', (req: Request, res: Response) => {
+  const status = playlistService.getGlobalStatus();
+  return res.json(status);
+});
+
+app.post('/api/sync', async (req: Request, res: Response) => {
+  try {
+    const sourceId = (req.query.sourceId as string) || req.body?.sourceId;
+    if (sourceId && sourceId !== 'all') {
+      const result = await playlistService.fetchSingleSource(sourceId);
+      return res.json(result);
+    } else {
+      const result = await playlistService.fetchAllSources();
+      return res.json(result);
+    }
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============================================================
+// 5. PLAYLIST SOURCES & FILE UPLOAD
+// ============================================================
+app.get('/api/sources', (req: Request, res: Response) => {
+  return res.json(playlistService.getSources());
+});
+
+app.post('/api/sources', (req: Request, res: Response) => {
+  try {
+    const { name, url, id, slug } = req.body;
+    if (!name || !url) {
+      return res.status(400).json({ error: 'Name and URL are required' });
+    }
+    const created = playlistService.addSource({ name, url, id, slug });
+    return res.json({ success: true, source: created });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload and host local .m3u / .m3u8 file
+app.post('/api/upload-playlist', (req: Request, res: Response) => {
+  try {
+    const { filename, content, displayName, slug } = req.body;
+    if (!filename || !content) {
+      return res.status(400).json({ error: 'Filename and playlist content are required' });
+    }
+    const created = playlistService.uploadM3UFile(filename, content, displayName || filename, slug);
+    const m3uUrl = `/api/playlist/${created.slug}.m3u`;
+    return res.json({
+      success: true,
+      message: `Uploaded and hosted "${created.name}"`,
+      source: created,
+      m3uUrl,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/sources/:id', (req: Request, res: Response) => {
+  try {
+    const updated = playlistService.updateSource(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+    return res.json({ success: true, source: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Toggle source on/off
+app.post('/api/sources/:id/toggle', (req: Request, res: Response) => {
+  try {
+    const { enabled } = req.body;
+    const updated = playlistService.updateSource(req.params.id, { enabled });
+    if (!updated) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+    return res.json({ success: true, source: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/sources/:id', (req: Request, res: Response) => {
+  try {
+    const ok = playlistService.deleteSource(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// 6. CHANNEL MANAGEMENT APIS
+// ============================================================
+app.get('/api/channels', (req: Request, res: Response) => {
+  try {
+    const sourceId = (req.query.sourceId as string) || 'all';
+    const search = ((req.query.search as string) || '').trim().toLowerCase();
+    const group = (req.query.group as string) || '';
+    const status = (req.query.status as string) || 'all';
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 50;
+
+    let all = playlistService.getAllChannels(sourceId);
+
+    if (search) {
+      all = all.filter((c) => {
+        const name = (c.customName || c.name || '').toLowerCase();
+        const orig = (c.name || '').toLowerCase();
+        const grp = (c.customGroup || c.groupTitle || '').toLowerCase();
+        const id = (c.tvgId || c.id || '').toLowerCase();
+        return name.includes(search) || orig.includes(search) || grp.includes(search) || id.includes(search);
+      });
+    }
+
+    if (group && group !== 'all') {
+      all = all.filter((c) => (c.customGroup || c.groupTitle).toLowerCase() === group.toLowerCase());
+    }
+
+    if (status === 'active') {
+      all = all.filter((c) => c.enabled);
+    } else if (status === 'hidden') {
+      all = all.filter((c) => !c.enabled);
+    } else if (status === 'clearkey') {
+      all = all.filter((c) => c.hasClearKey);
+    } else if (status === 'custom') {
+      all = all.filter((c) => c.isCustom);
+    }
+
+    const total = all.length;
+    const startIndex = (page - 1) * limit;
+    const paginated = all.slice(startIndex, startIndex + limit);
+
+    return res.json({
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      channels: paginated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/channels/:id', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const ok = playlistService.updateChannel(id, req.body);
+    if (!ok) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Bulk toggle enable/disable channels
+app.post('/api/channels/bulk-toggle', (req: Request, res: Response) => {
+  try {
+    const { channelIds, enabled } = req.body;
+    if (!Array.isArray(channelIds) || channelIds.length === 0) {
+      return res.status(400).json({ error: 'channelIds array is required' });
+    }
+    const count = playlistService.bulkToggleChannels(channelIds, !!enabled);
+    return res.json({ success: true, updatedCount: count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/channels/reset/:id', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const ok = playlistService.resetChannel(id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/channels/add', (req: Request, res: Response) => {
+  try {
+    const { name, group, url, logo, tvgId, tvgChno, directives } = req.body;
+    if (!name || !url) {
+      return res.status(400).json({ error: 'Name and Stream URL are required' });
+    }
+    const created = playlistService.addCustomChannel({
+      name,
+      group: group || 'Custom',
+      url,
+      logo,
+      tvgId,
+      tvgChno,
+      directives: directives || [],
+    });
+    return res.json({ success: true, channel: created });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// 7. GROUP MANAGEMENT APIS
+// ============================================================
+app.get('/api/groups', (req: Request, res: Response) => {
+  const sourceId = req.query.sourceId as string | undefined;
+  return res.json(playlistService.getGroups(sourceId));
+});
+
+app.post('/api/groups/rename', (req: Request, res: Response) => {
+  try {
+    const { oldName, newName } = req.body;
+    if (!oldName || !newName) {
+      return res.status(400).json({ error: 'Old name and new name are required' });
+    }
+    playlistService.renameGroup(oldName, newName);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/groups/toggle', (req: Request, res: Response) => {
+  try {
+    const { groupName, visible } = req.body;
+    if (groupName === undefined || visible === undefined) {
+      return res.status(400).json({ error: 'groupName and visible are required' });
+    }
+    playlistService.toggleGroupVisibility(groupName, visible);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/groups/bulk-logo', (req: Request, res: Response) => {
+  try {
+    const { groupNames, logoUrl } = req.body;
+    if (!Array.isArray(groupNames) || groupNames.length === 0) {
+      return res.status(400).json({ error: 'groupNames array is required' });
+    }
+    const count = playlistService.setBulkGroupLogo(groupNames, logoUrl || '');
+    return res.json({ success: true, updatedChannels: count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/groups/remove-prefix', (req: Request, res: Response) => {
+  try {
+    const { prefix } = req.body;
+    if (!prefix) return res.status(400).json({ error: 'Prefix is required' });
+    const count = playlistService.removeGroupPrefix(prefix);
+    return res.json({ success: true, updatedCount: count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// 8. SETTINGS & BACKUPS
+// ============================================================
+app.get('/api/settings', (req: Request, res: Response) => {
+  return res.json(playlistService.getSettings());
+});
+
+app.put('/api/settings', (req: Request, res: Response) => {
+  try {
+    const updated = playlistService.updateSettings(req.body);
+    return res.json({ success: true, settings: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/backup/export', (req: Request, res: Response) => {
+  const backup = playlistService.exportBackup();
+  res.setHeader('Content-Disposition', 'attachment; filename="cartel187-backup.json"');
+  res.setHeader('Content-Type', 'application/json');
+  return res.json(backup);
+});
+
+app.post('/api/backup/import', (req: Request, res: Response) => {
+  try {
+    playlistService.importBackup(req.body);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message || 'Invalid backup payload' });
+  }
+});
+
+app.get('/api/preview-m3u', (req: Request, res: Response) => {
+  const sourceId = req.query.sourceId as string | undefined;
+  const m3u = playlistService.generateM3U(sourceId);
+  const lines = m3u.split('\n');
+  const preview = lines.slice(0, 120).join('\n');
+  return res.json({
+    totalLines: lines.length,
+    preview,
+  });
+});
+
+// ============================================================
+// 2C. CLOUDSTREAM REPOS & LIVE EVENTS ENDPOINTS
+// ============================================================
+app.get('/api/cloudstream/repos', (req: Request, res: Response) => {
+  return res.json(cloudstreamService.getRepos());
+});
+
+app.post('/api/cloudstream/repos', (req: Request, res: Response) => {
+  try {
+    const { name, url } = req.body;
+    if (!name || !url) return res.status(400).json({ error: 'Name and repository URL are required' });
+    const repo = cloudstreamService.addRepo(name, url);
+    return res.json({ success: true, repo });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cloudstream/repos/:id/sync', async (req: Request, res: Response) => {
+  try {
+    const ok = await cloudstreamService.fetchSingleRepo(req.params.id);
+    return res.json({ success: ok, repos: cloudstreamService.getRepos() });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cloudstream/sync-all', async (req: Request, res: Response) => {
+  try {
+    const result = await cloudstreamService.fetchAllRepos();
+    return res.json({ ...result, repos: cloudstreamService.getRepos() });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/cloudstream/repos/:id', (req: Request, res: Response) => {
+  try {
+    const ok = cloudstreamService.deleteRepo(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/cloudstream/items', (req: Request, res: Response) => {
+  return res.json(cloudstreamService.getItems());
+});
+
+app.post('/api/cloudstream/items', (req: Request, res: Response) => {
+  try {
+    const { name, url, category, logo, description } = req.body;
+    if (!name || !url) return res.status(400).json({ error: 'Name and stream URL are required' });
+    const item = cloudstreamService.addItem({ name, url, category, logo, description });
+    return res.json({ success: true, item });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/cloudstream/items/:id', (req: Request, res: Response) => {
+  try {
+    const updated = cloudstreamService.updateItem(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: 'Item not found' });
+    return res.json({ success: true, item: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/cloudstream/items/:id', (req: Request, res: Response) => {
+  try {
+    const ok = cloudstreamService.deleteItem(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cloudstream/items/:id/toggle', (req: Request, res: Response) => {
+  try {
+    const { enabled } = req.body;
+    const updated = cloudstreamService.toggleItem(req.params.id, enabled);
+    if (!updated) return res.status(404).json({ error: 'Item not found' });
+    return res.json({ success: true, item: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cloudstream/categories/toggle', (req: Request, res: Response) => {
+  try {
+    const { category, enabled } = req.body;
+    if (!category) return res.status(400).json({ error: 'Category is required' });
+    const count = cloudstreamService.toggleCategory(category, enabled);
+    return res.json({ success: true, count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cloudstream/categories/rename', (req: Request, res: Response) => {
+  try {
+    const { oldCategory, newCategory } = req.body;
+    if (!oldCategory || !newCategory) return res.status(400).json({ error: 'Both old and new category names required' });
+    const count = cloudstreamService.renameCategory(oldCategory, newCategory);
+    return res.json({ success: true, count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/cloudstream/raw-json', (req: Request, res: Response) => {
+  const repoId = req.query.repoId as string | undefined;
+  return res.json(cloudstreamService.getRawJson(repoId));
+});
+
+function serveCloudStreamM3U(req: Request, res: Response) {
+  const m3u = cloudstreamService.generateM3U();
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', 'inline; filename="nexus_cloudstream.m3u"');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.send(m3u);
+}
+
+function serveCloudStreamJSON(req: Request, res: Response) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.json(cloudstreamService.generateJSON());
+}
+
+app.get('/cloudstream.m3u', serveCloudStreamM3U);
+app.get('/cloudstream.m3u8', serveCloudStreamM3U);
+app.get('/api/cloudstream.m3u', serveCloudStreamM3U);
+app.get('/api/cloudstream/playlist.m3u', serveCloudStreamM3U);
+app.get('/cloudstream.json', serveCloudStreamJSON);
+app.get('/api/cloudstream/json', serveCloudStreamJSON);
+app.get('/api/cloudstream/all.json', serveCloudStreamJSON);
+
+// ============================================================
+// 2D. SKYSTREAM SHORTCODES & EXTENSIONS ENDPOINTS
+// ============================================================
+app.get('/api/skystream/extensions', (req: Request, res: Response) => {
+  return res.json({
+    repos: skystreamService.getRepos(),
+    items: skystreamService.getItems(),
+  });
+});
+
+app.post('/api/skystream/fetch', async (req: Request, res: Response) => {
+  try {
+    const { url, name } = req.body;
+    if (!url) return res.status(400).json({ error: 'Shortcode or Repository URL required' });
+    const result = await skystreamService.fetchByShortcodeOrUrl(url);
+    return res.json({ ...result });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/skystream/sync-all', async (req: Request, res: Response) => {
+  try {
+    const result = await skystreamService.fetchAll();
+    return res.json({ ...result });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/skystream/items', (req: Request, res: Response) => {
+  try {
+    const item = skystreamService.addItem(req.body);
+    return res.json({ success: true, item });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/skystream/items/:id', (req: Request, res: Response) => {
+  try {
+    const item = skystreamService.updateItem(req.params.id, req.body);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    return res.json({ success: true, item });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/skystream/items/:id/toggle', (req: Request, res: Response) => {
+  try {
+    const { enabled } = req.body;
+    const item = skystreamService.toggleItem(req.params.id, enabled);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    return res.json({ success: true, item });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/skystream/items/:id', (req: Request, res: Response) => {
+  try {
+    const ok = skystreamService.deleteItem(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/skystream/categories/toggle', (req: Request, res: Response) => {
+  try {
+    const { category, enabled } = req.body;
+    if (!category) return res.status(400).json({ error: 'Category is required' });
+    const count = skystreamService.toggleCategory(category, enabled);
+    return res.json({ success: true, count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/skystream/categories/rename', (req: Request, res: Response) => {
+  try {
+    const { oldCategory, newCategory } = req.body;
+    if (!oldCategory || !newCategory) return res.status(400).json({ error: 'Both old and new category names required' });
+    const count = skystreamService.renameCategory(oldCategory, newCategory);
+    return res.json({ success: true, count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/skystream/raw-json', (req: Request, res: Response) => {
+  const targetId = (req.query.targetId || req.query.shortcode) as string | undefined;
+  return res.json(skystreamService.getRawJson(targetId));
+});
+
+function serveSkyStreamM3U(req: Request, res: Response) {
+  const m3u = skystreamService.generateM3U();
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', 'inline; filename="nexus_skystream.m3u"');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.send(m3u);
+}
+
+function serveSkyStreamJSON(req: Request, res: Response) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.json(skystreamService.generateJSON());
+}
+
+app.get('/skystream.m3u', serveSkyStreamM3U);
+app.get('/skystream.m3u8', serveSkyStreamM3U);
+app.get('/api/skystream.m3u', serveSkyStreamM3U);
+app.get('/skystream.json', serveSkyStreamJSON);
+app.get('/api/skystream.json', serveSkyStreamJSON);
+
+// ============================================================
+// 2E. STREMIO / NUVIO & CNCVERSE-BRIDGE ENDPOINTS
+// ============================================================
+app.get('/api/stremio/addons', (req: Request, res: Response) => {
+  return res.json(stremioNuvioService.getAddons());
+});
+
+app.post('/api/stremio/addons', async (req: Request, res: Response) => {
+  try {
+    const { manifestUrl, name } = req.body;
+    if (!manifestUrl) return res.status(400).json({ error: 'Manifest URL is required' });
+    const addon = await stremioNuvioService.addAddon(manifestUrl, name);
+    return res.json({ success: true, addon });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/stremio/addons/:id/sync', async (req: Request, res: Response) => {
+  try {
+    const ok = await stremioNuvioService.fetchAddonManifest(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/stremio/sync-all', async (req: Request, res: Response) => {
+  try {
+    const result = await stremioNuvioService.syncAllAddons();
+    return res.json({ ...result });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/stremio/raw-json', (req: Request, res: Response) => {
+  const addonId = req.query.addonId as string | undefined;
+  return res.json(stremioNuvioService.getRawJson(addonId));
+});
+
+app.get('/api/cncverse/streams', (req: Request, res: Response) => {
+  return res.json({
+    bridge: stremioNuvioService.getBridgeStatus(),
+    streams: stremioNuvioService.getStreams(),
+  });
+});
+
+app.get('/api/cncverse/status', async (req: Request, res: Response) => {
+  const status = await stremioNuvioService.checkBridgeStatus();
+  return res.json({ ...stremioNuvioService.getBridgeStatus(), status });
+});
+
+app.post('/api/cncverse/sync', async (req: Request, res: Response) => {
+  try {
+    await stremioNuvioService.checkBridgeStatus();
+    return res.json({ success: true, bridge: stremioNuvioService.getBridgeStatus() });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cncverse/url', (req: Request, res: Response) => {
+  try {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL required' });
+    stremioNuvioService.setBridgeUrl(url);
+    return res.json({ success: true, bridge: stremioNuvioService.getBridgeStatus() });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cncverse/streams', (req: Request, res: Response) => {
+  try {
+    const item = stremioNuvioService.addStream(req.body);
+    return res.json({ success: true, item });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/cncverse/streams/:id', (req: Request, res: Response) => {
+  try {
+    const item = stremioNuvioService.updateStream(req.params.id, req.body);
+    if (!item) return res.status(404).json({ error: 'Stream not found' });
+    return res.json({ success: true, item });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cncverse/streams/:id/toggle', (req: Request, res: Response) => {
+  try {
+    const { enabled } = req.body;
+    const item = stremioNuvioService.toggleStream(req.params.id, enabled);
+    if (!item) return res.status(404).json({ error: 'Stream not found' });
+    return res.json({ success: true, item });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/cncverse/streams/:id', (req: Request, res: Response) => {
+  try {
+    const ok = stremioNuvioService.deleteStream(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cncverse/categories/toggle', (req: Request, res: Response) => {
+  try {
+    const { category, enabled } = req.body;
+    if (!category) return res.status(400).json({ error: 'Category is required' });
+    const count = stremioNuvioService.toggleCategory(category, enabled);
+    return res.json({ success: true, count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cncverse/categories/rename', (req: Request, res: Response) => {
+  try {
+    const { oldCategory, newCategory } = req.body;
+    if (!oldCategory || !newCategory) return res.status(400).json({ error: 'Both old and new category names required' });
+    const count = stremioNuvioService.renameCategory(oldCategory, newCategory);
+    return res.json({ success: true, count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+function serveCNCVerseM3U(req: Request, res: Response) {
+  const m3u = stremioNuvioService.generateCNCVerseM3U();
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', 'inline; filename="nexus_cncverse.m3u"');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.send(m3u);
+}
+
+function serveCNCVerseJSON(req: Request, res: Response) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.json(stremioNuvioService.generateCNCVerseJSON());
+}
+
+function serveStremioM3U(req: Request, res: Response) {
+  const m3u = stremioNuvioService.generateStremioM3U();
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', 'inline; filename="nexus_stremio_addons.m3u"');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.send(m3u);
+}
+
+function serveStremioJSON(req: Request, res: Response) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.json(stremioNuvioService.getRawJson());
+}
+
+app.get('/cncverse.m3u', serveCNCVerseM3U);
+app.get('/cncverse.m3u8', serveCNCVerseM3U);
+app.get('/api/cncverse.m3u', serveCNCVerseM3U);
+app.get('/cncverse.json', serveCNCVerseJSON);
+app.get('/api/cncverse.json', serveCNCVerseJSON);
+
+app.get('/stremio.m3u', serveStremioM3U);
+app.get('/stremio.m3u8', serveStremioM3U);
+app.get('/nuvio-stremio.m3u', serveStremioM3U);
+app.get('/api/stremio.m3u', serveStremioM3U);
+app.get('/stremio.json', serveStremioJSON);
+app.get('/api/stremio.json', serveStremioJSON);
+
+// Vite Integration & Static Hosting
+async function startServer() {
+  await playlistService.init();
+
+  const distCandidate1 = path.resolve(__dirname, 'dist');
+  const distCandidate2 = __dirname;
+  const distCandidate3 = path.resolve(process.cwd(), 'dist');
+
+  const distPath = [distCandidate1, distCandidate2, distCandidate3].find(
+    (dir) => fs.existsSync(path.join(dir, 'index.html'))
+  );
+
+  const isProd = process.env.NODE_ENV === 'production' || distPath !== undefined;
+
+  if (isProd && distPath) {
+    console.log(`[Server] Serving production static files from: ${distPath}`);
+    app.use(express.static(distPath));
+    app.get('*', (req, res, next) => {
+      if (
+        req.path.startsWith('/api') ||
+        req.path.startsWith('/playlist') ||
+        req.path.startsWith('/nexusempire') ||
+        req.path.startsWith('/aninexus') ||
+        req.path.endsWith('.m3u') ||
+        req.path.endsWith('.m3u8')
+      ) {
+        return next();
+      }
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    console.log('[Server] Mounting Vite dev server middleware');
+    const { createServer } = await import('vite');
+    const vite = await createServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  }
+
+  app.listen(PORT, HOST, () => {
+    console.log(`[Nexus] Engine running at http://${HOST}:${PORT}`);
+    console.log(`[Nexus] Master M3U: http://${HOST}:${PORT}/api/playlist/all.m3u`);
+    console.log(`[Nexus] NexusEmpire Master M3U: http://${HOST}:${PORT}/api/nexusempire/all.m3u`);
+  });
+}
 
 // External JSON Data Endpoints
 app.get('/api/external/fancode', async (req, res) => {
@@ -580,20 +1136,7 @@ app.get('/api/external/zee5', async (req, res) => {
   }
 });
 
-// Vite middleware
-const isProd = process.env.NODE_ENV === 'production';
-if (!isProd) {
-  const { createServer } = await import('vite');
-  const vite = await createServer({
-    server: { middlewareMode: true },
-    appType: 'spa',
-  });
-  app.use(vite.middlewares);
-} else {
-  app.use(express.static('dist'));
-  app.get('*', (req, res) => res.sendFile(path.resolve(__dirname, 'dist', 'index.html')));
-}
-
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+startServer().catch((err) => {
+  console.error('[Server] Fatal startup error:', err);
+  process.exit(1);
 });

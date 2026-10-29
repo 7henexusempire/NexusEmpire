@@ -1,170 +1,108 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { X, Play, Copy, Check, ShieldAlert, AlertTriangle, ExternalLink, Info } from 'lucide-react';
 import Hls from 'hls.js';
-import { ChannelStream } from '../types/playlist';
-import {
-  X,
-  Play,
-  Volume2,
-  VolumeX,
-  ExternalLink,
-  Copy,
-  Check,
-  ShieldAlert,
-  Radio,
-  Tv,
-} from 'lucide-react';
+import { ChannelItem } from '../types';
 
 interface StreamPlayerModalProps {
-  stream: ChannelStream | null;
+  channel: ChannelItem | null;
   onClose: () => void;
 }
 
-export const StreamPlayerModal: React.FC<StreamPlayerModalProps> = ({ stream, onClose }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [useProxy, setUseProxy] = useState(false);
-  const [playerStatus, setPlayerStatus] = useState<string>('Initializing...');
-  const [isCopied, setIsCopied] = useState(false);
+export const StreamPlayerModal: React.FC<StreamPlayerModalProps> = ({ channel, onClose }) => {
+  if (!channel) return null;
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [playError, setPlayError] = useState<string | null>(null);
+  const streamUrl = channel.customUrl || channel.url;
+  const isDASH = streamUrl.toLowerCase().includes('.mpd');
 
   useEffect(() => {
-    if (!stream) return;
-
-    // Streambox protocol check
-    if (stream.url.startsWith('streambox://')) {
-      setPlayerStatus('Streambox Protocol Stream (Ready for AniTV / Streambox App)');
-      return;
-    }
-
-    let hls: Hls | null = null;
+    let hlsInstance: Hls | null = null;
     const video = videoRef.current;
     if (!video) return;
 
-    setPlayerStatus('Connecting to stream feed...');
+    setPlayError(null);
 
-    const streamUrl = useProxy
-      ? `/api/proxy?url=${encodeURIComponent(stream.url)}`
-      : stream.url;
-
-    if (Hls.isSupported()) {
-      hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-      });
-
-      hls.loadSource(streamUrl);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setPlayerStatus('Live Stream Manifest Ready');
-        video.play().catch(() => {
-          setPlayerStatus('Stream Loaded (Click Play)');
+    if (streamUrl.includes('.m3u8')) {
+      if (Hls.isSupported()) {
+        hlsInstance = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
         });
-      });
-
-      hls.on(Hls.Events.ERROR, (_, data) => {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              setPlayerStatus('Network error (CORS restricted or stream offline). Try enabling Proxy fallback below.');
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls?.recoverMediaError();
-              break;
-            default:
-              setPlayerStatus('Unable to play stream directly. Use external player or AniTV.');
-              break;
+        hlsInstance.loadSource(streamUrl);
+        hlsInstance.attachMedia(video);
+        hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            setPlayError(`Stream error: ${data.details}. Note: Some streams require DRM/token authentication handled in IPTV players.`);
           }
-        }
-      });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native Safari / iOS HLS support
-      video.src = streamUrl;
-      video.addEventListener('loadedmetadata', () => {
-        video.play().catch(() => {});
-      });
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = streamUrl;
+      }
     } else {
-      setPlayerStatus('HLS format not supported natively in this browser');
+      video.src = streamUrl;
     }
 
     return () => {
-      if (hls) {
-        hls.destroy();
+      if (hlsInstance) {
+        hlsInstance.destroy();
+      }
+      if (video) {
+        video.src = '';
       }
     };
-  }, [stream, useProxy]);
+  }, [streamUrl]);
 
-  if (!stream) return null;
-
-  const isStreambox = stream.url.startsWith('streambox://');
-
-  const handleCopyUrl = () => {
-    navigator.clipboard.writeText(stream.url);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(streamUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-      <div className="crystal-panel rounded-2xl w-full max-w-3xl overflow-hidden border border-cyan-400/30 flex flex-col max-h-[90vh]">
-        {/* Modal Header */}
-        <div className="p-4 border-b border-white/10 flex items-center justify-between gap-3 bg-black/40">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded bg-black/60 border border-white/10 flex items-center justify-center p-1 shrink-0 overflow-hidden">
-              {stream.logo ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80  animate-fadeIn">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-slate-900/95 z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center p-1 shrink-0 overflow-hidden">
+              {(channel.customLogo || channel.tvgLogo) ? (
                 <img
-                  src={stream.logo}
-                  alt={stream.title}
+                  src={channel.customLogo || channel.tvgLogo}
+                  alt={channel.name}
                   className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
                 />
               ) : (
-                <Tv className="w-5 h-5 text-amber-400" />
+                <Play className="w-4 h-4 text-amber-400" />
               )}
             </div>
-            <div className="min-w-0">
-              <h3 className="font-bold text-sm text-white truncate">{stream.title}</h3>
-              <p className="text-[11px] text-gray-400 font-mono truncate">
-                {stream.group} • {stream.sourceName}
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <span>{channel.customName || channel.name}</span>
+                {channel.hasClearKey && (
+                  <span className="text-[10px] font-mono text-amber-400 bg-amber-950/60 border border-amber-800 px-1.5 py-0.5 rounded flex items-center gap-1">
+                    <ShieldAlert className="w-3 h-3" />
+                    ClearKey DRM
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {channel.customGroup || channel.groupTitle} · Format: {isDASH ? 'MPEG-DASH (.mpd)' : 'HLS (.m3u8)'}
               </p>
             </div>
           </div>
-
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-black/40 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Video Canvas or Streambox Panel */}
-        <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
-          {isStreambox ? (
-            <div className="text-center p-6 space-y-3 max-w-md">
-              <Radio className="w-12 h-12 text-amber-400 mx-auto animate-pulse" />
-              <h4 className="font-bold text-white text-base">Streambox / AniTV Protocol Feed</h4>
-              <p className="text-xs text-gray-300 leading-relaxed font-mono">
-                {stream.url}
-              </p>
-              <div className="flex items-center justify-center gap-2 pt-2">
-                <a
-                  href={stream.url}
-                  className="px-4 py-2 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-gray-950 transition-colors flex items-center gap-1.5 shadow-md"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>Launch in AniTV</span>
-                </a>
-                <button
-                  onClick={handleCopyUrl}
-                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center gap-1"
-                >
-                  {isCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  <span>{isCopied ? 'Copied' : 'Copy Hash URL'}</span>
-                </button>
-              </div>
-            </div>
-          ) : (
+        {/* Video Canvas Container */}
+        <div className="p-5 space-y-4 text-xs">
+          <div className="aspect-video bg-black rounded-xl border border-slate-800 overflow-hidden relative flex items-center justify-center shadow-inner">
             <video
               ref={videoRef}
               controls
@@ -172,40 +110,70 @@ export const StreamPlayerModal: React.FC<StreamPlayerModalProps> = ({ stream, on
               playsInline
               className="w-full h-full object-contain"
             />
-          )}
-        </div>
-
-        {/* Footer & Diagnostics */}
-        <div className="p-4 bg-black/60 border-t border-white/10 space-y-2 text-xs">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span className="font-mono text-[11px] text-gray-300">{playerStatus}</span>
-            </div>
-
-            {!isStreambox && (
-              <label className="flex items-center gap-2 cursor-pointer text-gray-300 hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={useProxy}
-                  onChange={(e) => setUseProxy(e.target.checked)}
-                  className="rounded bg-black border-white/20 text-cyan-400"
-                />
-                <span>Bypass CORS with Server Proxy</span>
-              </label>
+            {playError && (
+              <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center text-slate-300">
+                <AlertTriangle className="w-10 h-10 text-amber-400 mb-2" />
+                <h4 className="font-bold text-white text-sm mb-1">In-Browser Playback Notice</h4>
+                <p className="text-xs text-slate-400 max-w-md mb-3 leading-relaxed">
+                  {isDASH
+                    ? 'This is a protected MPEG-DASH stream with ClearKey DRM encryption and session cookies. Standard browsers block cross-origin MPD manifests without specialized CDM extensions.'
+                    : playError}
+                </p>
+                <div className="bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-lg text-xs text-emerald-400 font-medium">
+                  ✓ Verified: OTT Navigator and TiviMate automatically load the DRM key and play this stream directly via your M3U link!
+                </div>
+              </div>
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5 text-[11px] text-gray-400 font-mono">
-            <span className="truncate" title={stream.url}>{stream.url}</span>
-            <button
-              onClick={handleCopyUrl}
-              className="text-cyan-400 hover:text-cyan-300 shrink-0 font-sans font-medium flex items-center gap-1"
-            >
-              {isCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-              <span>{isCopied ? 'Copied' : 'Copy URL'}</span>
-            </button>
+          {/* Stream URL Box */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-semibold text-slate-300">Direct Stream URL</span>
+              <button
+                onClick={handleCopy}
+                className="text-amber-400 hover:underline flex items-center gap-1 text-[11px]"
+              >
+                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                <span>{copied ? 'Copied' : 'Copy URL'}</span>
+              </button>
+            </div>
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-[11px] text-amber-400 break-all select-all">
+              {streamUrl}
+            </div>
           </div>
+
+          {/* Kodi Directives & ClearKey Inspection */}
+          {channel.directives && channel.directives.length > 0 && (
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldAlert className="w-4 h-4 text-amber-400" />
+                <span className="font-bold text-white text-xs">
+                  IPTV Authentication &amp; Player Headers ({channel.directives.length})
+                </span>
+              </div>
+              <p className="text-slate-400 text-[11px] mb-2 leading-relaxed">
+                The fetcher preserved the exact Kodi and VLC properties from the source playlist so TiviMate and OTT Navigator will unlock the stream:
+              </p>
+              <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 font-mono text-[11px] text-slate-300 max-h-40 overflow-y-auto space-y-1">
+                {channel.directives.map((dir, idx) => (
+                  <div key={idx} className="break-all whitespace-pre-wrap select-all">
+                    {dir}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-800 flex items-center justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs transition-colors"
+          >
+            Close Inspector
+          </button>
         </div>
       </div>
     </div>

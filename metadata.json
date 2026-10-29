@@ -1,6 +1,6 @@
 {
-  "name": "Nexus Empire - M3U Stream Fetcher & Studio",
-  "description": "High-performance M3U playlist fetcher, aggregator, Streambox resolver, custom playlist rebuild studio, AI-powered deduplication, and live M3U generator.",
+  "name": "Cartel 187",
+  "description": "Cartel 187 IPTV Relay & AniNexus Studio - Multi-Playlist Stream Processor, M3U Hosting, AniTv Streambox Bridge, and OTT/TiviMate Hub.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

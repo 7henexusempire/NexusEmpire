@@ -1,0 +1,50 @@
+import React from 'react';
+
+interface NexusLogoProps {
+  size?: 'sm' | 'md' | 'lg';
+  showText?: boolean;
+}
+
+export const NexusLogo: React.FC<NexusLogoProps> = ({ size = 'md', showText = true }) => {
+  const isSm = size === 'sm';
+  const isLg = size === 'lg';
+
+  const imgHeight = isSm ? 'h-6' : isLg ? 'h-10' : 'h-8';
+  const badgeSize = isSm ? 'h-8 px-2' : isLg ? 'h-12 px-3.5' : 'h-10 px-2.5';
+
+  return (
+    <div className="flex items-center gap-3">
+      {/* Precision Nexus Logo Brandmark with transparent backing */}
+      <div
+        className={`relative ${badgeSize} rounded-xl bg-gradient-to-br from-slate-900/90 via-slate-950/90 to-black/90 border border-amber-400/40 shadow-lg shadow-amber-500/20 flex items-center justify-center shrink-0 group overflow-hidden `}
+      >
+        {/* Glow backdrop accent */}
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-orange-500/20 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/30 to-transparent"></div>
+
+        {/* Cleaned High-Res Transparent Nexus Wordmark */}
+        <img
+          src="https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547"
+          alt="NEXUS"
+          className={`relative z-10 ${imgHeight} object-contain brightness-110 transition-transform group-hover:scale-105`}
+        />
+      </div>
+
+      {showText && (
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="font-black text-base sm:text-lg tracking-wider text-white font-mono flex items-center gap-1.5">
+              <span>NEXUS</span>
+              <span className="text-amber-400 text-xs font-sans font-semibold tracking-normal px-1.5 py-0.5 rounded-full bg-amber-950/60 border border-amber-400/40">
+                PRO
+              </span>
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium tracking-wide">
+            IPTV Multi-Relay &amp; NexusEmpire Engine
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};

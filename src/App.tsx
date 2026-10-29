@@ -1,209 +1,719 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { useState } from 'react';
-import { 
-  Shield, 
-  Layers, 
-  Globe, 
-  Settings, 
-  Activity, 
-  Database,
-  Crown,
-  PlayCircle
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Tv,
+  Layers,
+  FileCode,
+  Settings,
+  Sparkles,
+  Radio,
+  Upload,
 } from 'lucide-react';
-import VideoBackground from './components/VideoBackground';
-import NexusEmpireTab from './components/NexusEmpireTab';
-import NexusRebuildTab from './components/NexusRebuildTab';
-import GlobalPlaylistsTab from './components/GlobalPlaylistsTab';
-import SportsHubTab from './components/SportsHubTab';
-
-type Tab = 'empire' | 'rebuild' | 'global' | 'sports' | 'status';
+import { Header } from './components/Header';
+import { VideoBackground } from './components/VideoBackground';
+import { ToastContainer } from './components/ToastContainer';
+import { QuickConnect } from './components/QuickConnect';
+import { ChannelList } from './components/ChannelList';
+import { GroupManager } from './components/GroupManager';
+import { NexusEmpireView } from './components/NexusEmpireView';
+import { NexusRebuildView } from './components/NexusRebuildView';
+import { CloudStreamView } from './components/CloudStreamView';
+import { SkyStreamView } from './components/SkyStreamView';
+import { StremioNuvioView } from './components/StremioNuvioView';
+import { AppTab } from './components/Header';
+import { RawInspector } from './components/RawInspector';
+import { ChannelModal } from './components/ChannelModal';
+import { AddChannelModal } from './components/AddChannelModal';
+import { StreamPlayerModal } from './components/StreamPlayerModal';
+import { SettingsModal } from './components/SettingsModal';
+import { PlaylistSourcesModal } from './components/PlaylistSourcesModal';
+import { UploadM3UModal } from './components/UploadM3UModal';
+import {
+  ChannelItem,
+  GroupInfo,
+  SyncStatus,
+  PlaylistSettings,
+  PlaylistSource,
+  ToastItem,
+} from './types';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('empire');
+  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [sources, setSources] = useState<PlaylistSource[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string>('all');
+  const [groups, setGroups] = useState<GroupInfo[]>([]);
+  const [channels, setChannels] = useState<ChannelItem[]>([]);
+  const [totalChannels, setTotalChannels] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize] = useState<number>(50);
+
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const [activeTab, setActiveTab] = useState<AppTab>('channels');
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isLoadingChannels, setIsLoadingChannels] = useState<boolean>(true);
+
+  // Modern Toast System
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  // Modals state
+  const [editingChannel, setEditingChannel] = useState<ChannelItem | null>(null);
+  const [isAddChannelOpen, setIsAddChannelOpen] = useState<boolean>(false);
+  const [previewingChannel, setPreviewingChannel] = useState<ChannelItem | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isSourcesOpen, setIsSourcesOpen] = useState<boolean>(false);
+  const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
+
+  const [settings, setSettings] = useState<PlaylistSettings>({
+    syncIntervalMinutes: 30,
+    autoSync: true,
+    userAgent: '',
+    customTvgUrl: '',
+    publicBaseUrl: '',
+    zeotvStripSuffix: true,
+    zeotvRemoveGroupLogo: true,
+    appTitle: 'Nexus',
+    dedupMode: 'smart',
+  });
+
+  const notify = (
+    type: 'success' | 'error' | 'info' | 'loading',
+    title: string,
+    message?: string,
+    duration = 3500
+  ) => {
+    const id = `toast_${Date.now()}_${Math.random()}`;
+    const newToast: ToastItem = { id, type, title, message, duration };
+    setToasts((prev) => [...prev, newToast]);
+
+    if (duration > 0) {
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
+    }
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/status');
+      if (res.ok) {
+        const data: SyncStatus = await res.json();
+        setStatus(data);
+        if (data.sources) {
+          setSources(data.sources);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch status:', err);
+    }
+  }, []);
+
+  const fetchSources = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sources');
+      if (res.ok) {
+        const data: PlaylistSource[] = await res.json();
+        setSources(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch sources:', err);
+    }
+  }, []);
+
+  const fetchGroups = useCallback(async (sourceId = selectedSource) => {
+    try {
+      const params = new URLSearchParams();
+      if (sourceId !== 'all') params.set('sourceId', sourceId);
+      const res = await fetch(`/api/groups?${params.toString()}`);
+      if (res.ok) {
+        const data: GroupInfo[] = await res.json();
+        setGroups(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch groups:', err);
+    }
+  }, [selectedSource]);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data: PlaylistSettings = await res.json();
+        setSettings(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
+    }
+  }, []);
+
+  const fetchChannels = useCallback(
+    async (
+      page = 1,
+      sourceId = selectedSource,
+      search = searchQuery,
+      group = selectedGroup,
+      stat = statusFilter
+    ) => {
+      setIsLoadingChannels(true);
+      try {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: pageSize.toString(),
+          sourceId,
+          search,
+          group,
+          status: stat,
+        });
+        const res = await fetch(`/api/channels?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setChannels(data.channels || []);
+          setTotalChannels(data.total || 0);
+          setTotalPages(data.totalPages || 1);
+          setCurrentPage(data.page || 1);
+        }
+      } catch (err) {
+        console.error('Failed to load channels:', err);
+      } finally {
+        setIsLoadingChannels(false);
+      }
+    },
+    [selectedSource, searchQuery, selectedGroup, statusFilter, pageSize]
+  );
+
+  // Initial load
+  useEffect(() => {
+    fetchStatus();
+    fetchSources();
+    fetchGroups('all');
+    fetchSettings();
+    fetchChannels(1, 'all');
+
+    const interval = setInterval(() => {
+      fetchStatus();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [fetchStatus, fetchSources, fetchGroups, fetchSettings, fetchChannels]);
+
+  // Handle Search & Filter changes
+  const handleSearchChange = (q: string) => {
+    setSearchQuery(q);
+    fetchChannels(1, selectedSource, q, selectedGroup, statusFilter);
+  };
+
+  const handleSourceChange = (srcId: string) => {
+    setSelectedSource(srcId);
+    setSelectedGroup('all');
+    fetchGroups(srcId);
+    fetchChannels(1, srcId, searchQuery, 'all', statusFilter);
+  };
+
+  const handleGroupChange = (g: string) => {
+    setSelectedGroup(g);
+    fetchChannels(1, selectedSource, searchQuery, g, statusFilter);
+  };
+
+  const handleStatusChange = (s: string) => {
+    setStatusFilter(s);
+    fetchChannels(1, selectedSource, searchQuery, selectedGroup, s);
+  };
+
+  const handlePageChange = (p: number) => {
+    fetchChannels(p, selectedSource, searchQuery, selectedGroup, statusFilter);
+  };
+
+  // Sync actions
+  const handleSyncNow = async () => {
+    setIsSyncing(true);
+    notify('loading', 'Syncing Playlists...', 'Refreshing live stream tokens, cookies, and DRM keys');
+    try {
+      const res = await fetch('/api/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        notify('success', 'Sync Complete!', data.message || 'All sources refreshed');
+      } else {
+        notify('error', 'Sync Warning', data.message);
+      }
+      await fetchStatus();
+      await fetchSources();
+      await fetchGroups(selectedSource);
+      await fetchChannels(currentPage, selectedSource);
+    } catch (err: any) {
+      notify('error', 'Sync Failed', err.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSyncSource = async (sourceId?: string) => {
+    try {
+      const url = sourceId ? `/api/sync?sourceId=${encodeURIComponent(sourceId)}` : '/api/sync';
+      const res = await fetch(url, { method: 'POST' });
+      const data = await res.json();
+      notify('success', 'Playlist Synced', data.message || 'Source refreshed');
+      await fetchStatus();
+      await fetchSources();
+      await fetchChannels(currentPage, selectedSource);
+    } catch (err: any) {
+      notify('error', 'Sync Error', err.message);
+    }
+  };
+
+  // Source CRUD
+  const handleAddSource = async (source: { name: string; url: string; id?: string; slug?: string }) => {
+    try {
+      const res = await fetch('/api/sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(source),
+      });
+      if (res.ok) {
+        notify('success', 'Source Added', `Registered playlist "${source.name}"`);
+        await fetchSources();
+        await fetchStatus();
+        await fetchChannels(1, selectedSource);
+      }
+    } catch (err: any) {
+      notify('error', 'Add Failed', err.message);
+    }
+  };
+
+  const handleUpdateSource = async (id: string, updates: Partial<PlaylistSource>) => {
+    try {
+      const res = await fetch(`/api/sources/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        notify('success', 'Playlist Updated', `Updated "${data.source?.name}"`);
+        await fetchSources();
+        await fetchStatus();
+        await fetchChannels(currentPage, selectedSource);
+      }
+    } catch (err: any) {
+      notify('error', 'Update Error', err.message);
+    }
+  };
+
+  const handleDeleteSource = async (id: string) => {
+    try {
+      const res = await fetch(`/api/sources/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        notify('success', 'Playlist Removed', 'Source deleted');
+        if (selectedSource === id) {
+          setSelectedSource('all');
+        }
+        await fetchSources();
+        await fetchStatus();
+        await fetchChannels(1, 'all');
+      }
+    } catch (err: any) {
+      notify('error', 'Delete Error', err.message);
+    }
+  };
+
+  // Channel Actions
+  const handleToggleChannel = async (id: string, currentEnabled: boolean) => {
+    try {
+      const res = await fetch(`/api/channels/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !currentEnabled }),
+      });
+      if (res.ok) {
+        setChannels((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, enabled: !currentEnabled } : c))
+        );
+        fetchStatus();
+        fetchGroups(selectedSource);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleBulkToggleChannels = async (channelIds: string[], enabled: boolean) => {
+    try {
+      const res = await fetch('/api/channels/bulk-toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelIds, enabled }),
+      });
+      if (res.ok) {
+        notify('success', enabled ? 'Channels Enabled' : 'Channels Disabled', `Updated ${channelIds.length} channels`);
+        fetchChannels(currentPage, selectedSource);
+        fetchGroups(selectedSource);
+        fetchStatus();
+      }
+    } catch (err: any) {
+      notify('error', 'Bulk Update Error', err.message);
+    }
+  };
+
+  const handleSaveChannel = async (id: string, updates: any) => {
+    try {
+      const res = await fetch(`/api/channels/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        notify('success', 'Channel Updated', 'Channel attributes saved');
+        fetchChannels(currentPage, selectedSource);
+        fetchGroups(selectedSource);
+      }
+    } catch (err: any) {
+      notify('error', 'Save Error', err.message);
+    }
+  };
+
+  const handleResetChannel = async (id: string) => {
+    try {
+      const res = await fetch(`/api/channels/reset/${id}`, { method: 'POST' });
+      if (res.ok) {
+        notify('success', 'Channel Reset', 'Restored upstream default settings');
+        fetchChannels(currentPage, selectedSource);
+        fetchGroups(selectedSource);
+      }
+    } catch (err: any) {
+      notify('error', 'Reset Error', err.message);
+    }
+  };
+
+  const handleAddChannel = async (newChannel: any) => {
+    try {
+      const res = await fetch('/api/channels/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newChannel),
+      });
+      if (res.ok) {
+        notify('success', 'Channel Created', `Added ${newChannel.name}`);
+        fetchChannels(1, selectedSource);
+        fetchGroups(selectedSource);
+        fetchStatus();
+      }
+    } catch (err: any) {
+      notify('error', 'Add Channel Error', err.message);
+    }
+  };
+
+  // Group Actions
+  const handleRenameGroup = async (oldName: string, newName: string) => {
+    try {
+      const res = await fetch('/api/groups/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldName, newName }),
+      });
+      if (res.ok) {
+        notify('success', 'Category Renamed', `Renamed to "${newName}"`);
+        fetchGroups(selectedSource);
+        fetchChannels(currentPage, selectedSource);
+      }
+    } catch (err: any) {
+      notify('error', 'Rename Error', err.message);
+    }
+  };
+
+  const handleToggleGroup = async (groupName: string, visible: boolean) => {
+    try {
+      const res = await fetch('/api/groups/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupName, visible }),
+      });
+      if (res.ok) {
+        notify('success', visible ? 'Category Enabled' : 'Category Hidden', `${visible ? 'Active' : 'Muted'} "${groupName}"`);
+        fetchGroups(selectedSource);
+        fetchChannels(currentPage, selectedSource);
+        fetchStatus();
+      }
+    } catch (err: any) {
+      notify('error', 'Toggle Error', err.message);
+    }
+  };
+
+  const handleBulkSetGroupLogo = async (groupNames: string[], logoUrl: string) => {
+    try {
+      const res = await fetch('/api/groups/bulk-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupNames, logoUrl }),
+      });
+      if (res.ok) {
+        notify(
+          'success',
+          logoUrl ? 'Logos Applied' : 'Logos Cleared',
+          `Updated logo across ${groupNames.length} categories`
+        );
+        fetchGroups(selectedSource);
+        fetchChannels(currentPage, selectedSource);
+      }
+    } catch (err: any) {
+      notify('error', 'Bulk Logo Error', err.message);
+    }
+  };
+
+  const handleRemovePrefix = async (prefix: string): Promise<number> => {
+    try {
+      const res = await fetch('/api/groups/remove-prefix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefix }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchGroups(selectedSource);
+        fetchChannels(currentPage, selectedSource);
+        return data.updatedCount || 0;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    return 0;
+  };
+
+  // Settings & Backup Actions
+  const handleSaveSettings = async (newSettings: Partial<PlaylistSettings>) => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSettings(data.settings);
+        fetchStatus();
+        notify('success', 'Settings Saved', 'Configuration updated');
+      }
+    } catch (err: any) {
+      notify('error', 'Settings Error', err.message);
+    }
+  };
+
+  const handleExportBackup = () => {
+    window.location.href = '/api/backup/export';
+  };
+
+  const handleImportBackup = async (data: any) => {
+    const res = await fetch('/api/backup/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to import');
+    }
+    notify('success', 'Backup Restored', 'All playlists and settings restored');
+    fetchStatus();
+    fetchSources();
+    fetchGroups(selectedSource);
+    fetchChannels(1, selectedSource);
+  };
 
   return (
-    <div className="min-h-screen text-slate-200 font-sans selection:bg-amber-500/30">
+    <div className="relative min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
+      {/* Ambient Video Background */}
       <VideoBackground />
-      
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-black/20 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <Crown className="text-black" size={28} />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-white tracking-tight">NEXUS EMPIRE</h1>
-              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-[0.2em]">Stream Engine & Studio</p>
-            </div>
-          </div>
-          
-          <nav className="hidden md:flex items-center gap-1 bg-black/30 p-1.5 rounded-2xl border border-white/5">
-            <TabButton 
-              active={activeTab === 'empire'} 
-              onClick={() => setActiveTab('empire')}
-              icon={<Shield size={16} />}
-              label="Nexus Empire"
-            />
-            <TabButton 
-              active={activeTab === 'rebuild'} 
-              onClick={() => setActiveTab('rebuild')}
-              icon={<Layers size={16} />}
-              label="Nexus Rebuild"
-            />
-            <TabButton 
-              active={activeTab === 'global'} 
-              onClick={() => setActiveTab('global')}
-              icon={<Globe size={16} />}
-              label="Global Streams"
-            />
-            <TabButton 
-              active={activeTab === 'sports'} 
-              onClick={() => setActiveTab('sports')}
-              icon={<PlayCircle size={16} className="text-emerald-400" />}
-              label="Sports Hub"
-            />
-            <TabButton 
-              active={activeTab === 'status'} 
-              onClick={() => setActiveTab('status')}
-              icon={<Activity size={16} />}
-              label="System"
-            />
-          </nav>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden lg:flex flex-col items-end mr-2">
-              <span className="text-[10px] text-white/40 uppercase font-bold">Server Port</span>
-              <span className="text-xs text-amber-500 font-mono">8443</span>
-            </div>
-            <button className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all text-white/60">
-              <Settings size={20} />
-            </button>
-          </div>
-        </div>
-      </header>
+      {/* Floating Modern Non-Browser Toast Popups */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {activeTab === 'empire' && <NexusEmpireTab />}
-          {activeTab === 'rebuild' && <NexusRebuildTab />}
-          {activeTab === 'global' && <GlobalPlaylistsTab />}
-          {activeTab === 'sports' && <SportsHubTab />}
-          {activeTab === 'status' && <StatusTab />}
-        </div>
+      {/* App Header */}
+      <Header
+        status={status}
+        isSyncing={isSyncing}
+        onSync={handleSyncNow}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSources={() => setIsSourcesOpen(true)}
+        onOpenUpload={() => setIsUploadOpen(true)}
+        activeTab={activeTab}
+        onSelectTab={(t) => setActiveTab(t)}
+      />
+
+      {/* Main Content Area */}
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Quick Connect IPTV Banner */}
+        <QuickConnect
+          totalChannels={status?.totalChannels || 0}
+          activeChannels={status?.activeChannels || 0}
+          totalGroups={status?.totalGroups || 0}
+          sources={sources}
+          publicBaseUrl={settings.publicBaseUrl}
+        />
+
+        {/* Tab Content */}
+        {activeTab === 'channels' && (
+          <ChannelList
+            channels={channels}
+            groups={groups}
+            sources={sources}
+            selectedSource={selectedSource}
+            totalChannels={totalChannels}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            searchQuery={searchQuery}
+            selectedGroup={selectedGroup}
+            statusFilter={statusFilter}
+            isLoading={isLoadingChannels}
+            onSearchChange={handleSearchChange}
+            onSourceChange={handleSourceChange}
+            onGroupChange={handleGroupChange}
+            onStatusChange={handleStatusChange}
+            onPageChange={handlePageChange}
+            onToggleChannel={handleToggleChannel}
+            onBulkToggleChannels={handleBulkToggleChannels}
+            onEditChannel={(ch) => setEditingChannel(ch)}
+            onResetChannel={handleResetChannel}
+            onAddChannel={() => setIsAddChannelOpen(true)}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+
+        {activeTab === 'groups' && (
+          <GroupManager
+            groups={groups}
+            onRenameGroup={handleRenameGroup}
+            onToggleGroup={handleToggleGroup}
+            onRemovePrefix={handleRemovePrefix}
+            onBulkSetGroupLogo={handleBulkSetGroupLogo}
+            onFilterByGroup={(groupName) => {
+              setSelectedGroup(groupName);
+              setActiveTab('channels');
+              fetchChannels(1, selectedSource, searchQuery, groupName, statusFilter);
+            }}
+          />
+        )}
+
+        {(activeTab === 'nexusempire' || activeTab === 'aninexus') && (
+          <NexusEmpireView
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+
+        {activeTab === 'rebuild' && (
+          <NexusRebuildView
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
+            sources={sources}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+
+        {activeTab === 'skystream' && (
+          <SkyStreamView
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+        {activeTab === 'stremio' && (
+          <StremioNuvioView
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+        {activeTab === 'cloudstream' && (
+          <CloudStreamView
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+
+        {activeTab === 'raw' && <RawInspector sources={sources} />}
       </main>
 
-      {/* Mobile Nav */}
-      <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-2 flex justify-around shadow-2xl">
-        <MobileTabButton active={activeTab === 'empire'} onClick={() => setActiveTab('empire')} icon={<Shield size={20} />} />
-        <MobileTabButton active={activeTab === 'rebuild'} onClick={() => setActiveTab('rebuild')} icon={<Layers size={20} />} />
-        <MobileTabButton active={activeTab === 'global'} onClick={() => setActiveTab('global')} icon={<Globe size={20} />} />
-        <MobileTabButton active={activeTab === 'sports'} onClick={() => setActiveTab('sports')} icon={<PlayCircle size={20} />} />
-        <MobileTabButton active={activeTab === 'status'} onClick={() => setActiveTab('status')} icon={<Activity size={20} />} />
-      </div>
-    </div>
-  );
-}
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-slate-900 bg-slate-950/90 py-6 text-center text-xs text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="flex items-center gap-2">
+            <span className="font-bold text-white tracking-wide">NEXUS</span>
+            <span>· Auto-refreshing all streams &amp; NexusEmpire feeds every {status?.syncIntervalMinutes || 30} minutes</span>
+          </p>
+          <p className="text-slate-400">
+            Engineered for <span className="text-amber-300 font-semibold">OTT Navigator</span>, <span className="text-amber-300 font-semibold">TiviMate</span>, <span className="text-indigo-300 font-semibold">AniTv</span> &amp; <span className="text-slate-200">StreamBox</span>
+          </p>
+        </div>
+      </footer>
 
-function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 ${
-        active 
-          ? 'bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/10' 
-          : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-      }`}
-    >
-      {icon}
-      <span className="text-sm">{label}</span>
-    </button>
-  );
-}
+      {/* Modals */}
+      {editingChannel && (
+        <ChannelModal
+          channel={editingChannel}
+          groups={groups}
+          onClose={() => setEditingChannel(null)}
+          onSave={handleSaveChannel}
+          onReset={handleResetChannel}
+        />
+      )}
 
-function MobileTabButton({ active, onClick, icon }: { active: boolean; onClick: () => void; icon: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`p-4 rounded-2xl transition-all ${
-        active ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-white/40'
-      }`}
-    >
-      {icon}
-    </button>
-  );
-}
+      {isAddChannelOpen && (
+        <AddChannelModal
+          groups={groups}
+          onClose={() => setIsAddChannelOpen(false)}
+          onAdd={handleAddChannel}
+        />
+      )}
 
-function StatusTab() {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div className="bg-black/30 border border-white/10 rounded-3xl p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Database className="text-amber-500" size={24} />
-          <h3 className="text-white font-bold">Persistence Engine</h3>
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Mode</span>
-            <span className="text-emerald-400 font-mono">FILESYSTEM_JSON</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Cache Size</span>
-            <span className="text-white">~2.4 MB</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Auto-Save</span>
-            <span className="text-emerald-400">ENABLED</span>
-          </div>
-        </div>
-      </div>
-      
-      <div className="bg-black/30 border border-white/10 rounded-3xl p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Activity className="text-amber-500" size={24} />
-          <h3 className="text-white font-bold">Sync Worker</h3>
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Interval</span>
-            <span className="text-white">15 Minutes</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Status</span>
-            <span className="text-emerald-400">OPERATIONAL</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Worker ID</span>
-            <span className="text-white font-mono">NX-2903-W</span>
-          </div>
-        </div>
-      </div>
+      {previewingChannel && (
+        <StreamPlayerModal
+          channel={previewingChannel}
+          onClose={() => setPreviewingChannel(null)}
+        />
+      )}
 
-      <div className="bg-black/30 border border-white/10 rounded-3xl p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Crown className="text-amber-500" size={24} />
-          <h3 className="text-white font-bold">License & Node</h3>
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Edition</span>
-            <span className="text-amber-500 font-bold italic">PRIME</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Uptime</span>
-            <span className="text-white">99.99%</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Node Location</span>
-            <span className="text-white">CONTABO_VPS_EU</span>
-          </div>
-        </div>
-      </div>
+      {isSettingsOpen && (
+        <SettingsModal
+          settings={settings}
+          onClose={() => setIsSettingsOpen(false)}
+          onSave={handleSaveSettings}
+          onExportBackup={handleExportBackup}
+          onImportBackup={handleImportBackup}
+        />
+      )}
+
+      {isSourcesOpen && (
+        <PlaylistSourcesModal
+          sources={sources}
+          onClose={() => setIsSourcesOpen(false)}
+          onAddSource={handleAddSource}
+          onUpdateSource={handleUpdateSource}
+          onDeleteSource={handleDeleteSource}
+          onSyncSource={handleSyncSource}
+          onOpenUploadModal={() => {
+            setIsSourcesOpen(false);
+            setIsUploadOpen(true);
+          }}
+        />
+      )}
+
+      {isUploadOpen && (
+        <UploadM3UModal
+          onClose={() => setIsUploadOpen(false)}
+          onUploaded={({ name, m3uUrl }) => {
+            notify('success', 'Uploaded & Hosted!', `Playlist "${name}" is live at ${m3uUrl}`);
+            fetchSources();
+            fetchStatus();
+            fetchChannels(1, selectedSource);
+          }}
+        />
+      )}
     </div>
   );
 }
