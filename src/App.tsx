@@ -22,6 +22,7 @@ import { Zee5View } from './components/Zee5View';
 import { CloudStreamView } from './components/CloudStreamView';
 import { SkyStreamView } from './components/SkyStreamView';
 import { StremioNuvioView } from './components/StremioNuvioView';
+import { PlaylistsView } from './components/PlaylistsView';
 import { AppTab } from './components/Header';
 import { RawInspector } from './components/RawInspector';
 import { ChannelModal } from './components/ChannelModal';
@@ -557,6 +558,14 @@ export default function App() {
         />
 
         {/* Tab Content */}
+        {activeTab === 'playlists' && (
+          <PlaylistsView
+            onNotify={notify}
+            onOpenSources={() => setIsSourcesOpen(true)}
+            onOpenUpload={() => setIsUploadOpen(true)}
+          />
+        )}
+
         {activeTab === 'channels' && (
           <ChannelList
             channels={channels}
