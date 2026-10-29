@@ -23,6 +23,7 @@ export interface ChannelStream {
   customLogo?: string;
   customUrl?: string;
   customChno?: string;
+  directives?: string[];
 }
 
 export interface PlaylistSource {

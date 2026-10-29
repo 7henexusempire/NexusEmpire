@@ -502,12 +502,33 @@ async function refreshAllSources() {
     const customUserStreams = channelDatabase.filter((c) => c.sourceId === 'src-custom');
     newDatabase.push(...customUserStreams);
 
-    const trashedUrls = new Set(
-      channelDatabase.filter((c) => c.status === 'trashed').map((c) => c.url)
-    );
+    // 1. Create maps for overrides and trashed status
+    const overridesMap = new Map<string, Partial<ChannelStream>>();
+    const trashedUrls = new Set<string>();
+
+    channelDatabase.forEach((c) => {
+      if (c.status === 'trashed') {
+        trashedUrls.add(c.url);
+      }
+      if (c.customName || c.customGroup || c.customLogo || c.customUrl || c.customChno) {
+        overridesMap.set(c.url, {
+          customName: c.customName,
+          customGroup: c.customGroup,
+          customLogo: c.customLogo,
+          customUrl: c.customUrl,
+          customChno: c.customChno,
+        });
+      }
+    });
+
+    // 2. Apply them to the new database
     newDatabase.forEach((ch) => {
       if (trashedUrls.has(ch.url)) {
         ch.status = 'trashed';
+      }
+      const overrides = overridesMap.get(ch.url);
+      if (overrides) {
+        Object.assign(ch, overrides);
       }
     });
 

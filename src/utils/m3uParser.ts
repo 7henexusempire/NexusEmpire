@@ -46,6 +46,7 @@ export function parseM3U(
   let currentTvgId = '';
   let currentTvgName = '';
   let currentHeaders: Record<string, string> = {};
+  let currentDirectives: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i].trim();
@@ -54,6 +55,7 @@ export function parseM3U(
     if (rawLine.startsWith('#EXTINF:')) {
       // Reset stream metadata
       currentHeaders = {};
+      currentDirectives = [];
 
       // Extract attributes
       const groupMatch = rawLine.match(/group-title="([^"]*)"/i);
@@ -84,6 +86,17 @@ export function parseM3U(
         currentHeaders = { ...currentHeaders, ...parsed };
       } catch {
         // ignore malformed custom header
+      }
+    } else if (rawLine.startsWith('#EXTM3U')) {
+      // Skip global header
+      continue;
+    } else if (rawLine.startsWith('#')) {
+      // It's a directive (like #EXT-KDO, #HMAC, #EXP)
+      // Only add if it's not one of the specific ones we already handled above
+      if (!rawLine.startsWith('#EXTINF:') && 
+          !rawLine.startsWith('#EXTVLCOPT:') && 
+          !rawLine.startsWith('#EXTHTTP:')) {
+        currentDirectives.push(rawLine);
       }
     } else if (!rawLine.startsWith('#')) {
       // This is the stream URL or streambox:// protocol URL
@@ -120,6 +133,7 @@ export function parseM3U(
         status: 'active',
         serverSignature,
         addedAt: Date.now(),
+        directives: currentDirectives.length > 0 ? currentDirectives : undefined,
       });
 
       // Clear current state
@@ -275,6 +289,11 @@ export function buildM3U(channels: ChannelStream[], playlistName = 'Nexus Empire
     const groupAttr = ch.group ? ` group-title="${escapeM3UAttr(ch.group)}"` : ' group-title="General"';
 
     lines.push(`#EXTINF:-1${tvgIdAttr}${tvgNameAttr}${tvgLogoAttr}${groupAttr},${ch.title}`);
+
+    // Output preserved directives first
+    if (ch.directives && ch.directives.length > 0) {
+      lines.push(...ch.directives);
+    }
 
     // If headers exist, add standard headers for VLC / Kodi / TiviMate
     if (ch.headers) {
