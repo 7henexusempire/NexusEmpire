@@ -23,6 +23,9 @@ export type AppTab =
   | 'nexusempire'
   | 'aninexus'
   | 'rebuild'
+  | 'fancode'
+  | 'sonyliv'
+  | 'zee5'
   | 'cloudstream'
   | 'skystream'
   | 'stremio'
@@ -86,10 +89,12 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'channels', label: 'All Streams', icon: <Tv className="w-3.5 h-3.5" /> },
     { id: 'nexusempire', label: 'Nexus Empire', icon: <Radio className="w-3.5 h-3.5 text-amber-400" /> },
     { id: 'rebuild', label: 'Nexus Rebuild', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" />, badge: 'PRO' },
+    { id: 'fancode', label: 'FanCode Live', icon: <Trophy className="w-3.5 h-3.5 text-amber-400" />, badge: 'LIVE' },
+    { id: 'sonyliv', label: 'SonyLIV Hub', icon: <Tv className="w-3.5 h-3.5 text-indigo-400" />, badge: 'SONY' },
+    { id: 'zee5', label: 'Zee5 Live', icon: <Radio className="w-3.5 h-3.5 text-cyan-400" />, badge: 'ZEE' },
     { id: 'cloudstream', label: 'CloudStream', icon: <Flame className="w-3.5 h-3.5 text-orange-400" /> },
     { id: 'skystream', label: 'SkyStream', icon: <Globe className="w-3.5 h-3.5 text-amber-300" />, badge: 'NEW' },
     { id: 'stremio', label: 'Nuvio / Stremio', icon: <RadioTower className="w-3.5 h-3.5 text-yellow-400" />, badge: 'BRIDGE' },
-    { id: 'sports', label: 'Sports Hub', icon: <Trophy className="w-3.5 h-3.5 text-emerald-400" />, badge: 'LIVE' },
     { id: 'groups', label: 'Categories', icon: <Layers className="w-3.5 h-3.5" /> },
     { id: 'raw', label: 'Inspect M3U', icon: <FileCode className="w-3.5 h-3.5" /> },
   ];

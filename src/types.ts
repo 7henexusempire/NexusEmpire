@@ -119,3 +119,27 @@ export interface ToastItem {
   message?: string;
   duration?: number;
 }
+
+export interface SportsEventItem {
+  id: string;
+  title: string;
+  category?: string;
+  sport?: string;
+  status?: 'LIVE' | 'UPCOMING' | 'COMPLETED' | string;
+  startTime?: string;
+  endTime?: string;
+  poster?: string;
+  logo?: string;
+  url: string;
+  service: 'fancode' | 'sonyliv' | 'zee5' | 'other';
+  raw?: any;
+}
+
+export interface PrefixSuffixConfig {
+  namePrefix?: string;
+  nameSuffix?: string;
+  groupPrefix?: string;
+  groupSuffix?: string;
+  startChannelNumber?: number;
+  enableChannelNumbering?: boolean;
+}

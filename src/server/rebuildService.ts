@@ -13,6 +13,12 @@ export interface RebuiltPlaylist {
   targetType: 'nexusempire' | 'normal';
   targetSourceOrCategory: string; // e.g. 'zee' or 'plugx' or 'all'
   customCategories: Record<string, string[]>; // categoryName -> channelIds
+  namePrefix?: string;
+  nameSuffix?: string;
+  groupPrefix?: string;
+  groupSuffix?: string;
+  startChannelNumber?: number;
+  enableChannelNumbering?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +70,12 @@ class RebuildService {
     targetType: 'nexusempire' | 'normal';
     targetSourceOrCategory: string;
     customCategories?: Record<string, string[]>;
+    namePrefix?: string;
+    nameSuffix?: string;
+    groupPrefix?: string;
+    groupSuffix?: string;
+    startChannelNumber?: number;
+    enableChannelNumbering?: boolean;
   }): RebuiltPlaylist {
     const slug = (data.slug || data.name).toLowerCase().replace(/[^a-z0-9_-]/g, '-');
     const id = `rebuild_${Date.now()}`;
@@ -75,6 +87,12 @@ class RebuildService {
       targetType: data.targetType,
       targetSourceOrCategory: data.targetSourceOrCategory,
       customCategories: data.customCategories || { 'Main Bouquet': [] },
+      namePrefix: data.namePrefix || '',
+      nameSuffix: data.nameSuffix || '',
+      groupPrefix: data.groupPrefix || '',
+      groupSuffix: data.groupSuffix || '',
+      startChannelNumber: data.startChannelNumber || 1,
+      enableChannelNumbering: data.enableChannelNumbering || false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -119,19 +137,23 @@ class RebuildService {
     ];
 
     const channelMap = new Map(allChannels.map((c) => [c.id, c]));
+    let chnoCounter = typeof p.startChannelNumber === 'number' ? p.startChannelNumber : 1;
 
     for (const [catName, channelIds] of Object.entries(p.customCategories)) {
+      const finalGroupName = `${p.groupPrefix || ''}${catName}${p.groupSuffix || ''}`;
+
       lines.push('');
       lines.push(`# ============================================================`);
-      lines.push(`# Category: ${catName}`);
+      lines.push(`# Category: ${finalGroupName}`);
       lines.push(`# ============================================================`);
 
       for (const cId of channelIds) {
         const ch = channelMap.get(cId);
         if (!ch) continue;
 
-        const displayName = ch.customName || ch.name;
-        const logo = ch.customLogo || ch.tvgLogo || '';
+        const rawName = ch.customName || ch.name;
+        const displayName = `${p.namePrefix || ''}${rawName}${p.nameSuffix || ''}`;
+        const logo = ch.customLogo || ch.tvgLogo || ch.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
         const tvgId = ch.tvgId || ch.id;
         const streamUrl = ch.customUrl || ch.url;
 
@@ -143,7 +165,13 @@ class RebuildService {
         if (tvgId) extInfParts.push(`tvg-id="${tvgId}"`);
         extInfParts.push(`tvg-name="${displayName}"`);
         if (logo) extInfParts.push(`tvg-logo="${logo}"`);
-        extInfParts.push(`group-title="${catName}"`);
+        extInfParts.push(`group-title="${finalGroupName}"`);
+
+        if (p.enableChannelNumbering) {
+          extInfParts.push(`tvg-chno="${chnoCounter++}"`);
+        } else if (ch.customChno || ch.tvgChno) {
+          extInfParts.push(`tvg-chno="${ch.customChno || ch.tvgChno}"`);
+        }
 
         lines.push(`${extInfParts.join(' ')},${displayName}`);
 

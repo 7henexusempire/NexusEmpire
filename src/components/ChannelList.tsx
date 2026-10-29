@@ -250,7 +250,7 @@ export const ChannelList: React.FC<ChannelListProps> = ({
                   channel.customUrl ||
                   channel.customChno
                 );
-                const logoUrl = channel.customLogo || channel.tvgLogo;
+                const logoUrl = channel.customLogo || channel.tvgLogo || channel.logo;
                 const isImageBroken = imageErrors[channel.id];
 
                 return (
@@ -305,7 +305,11 @@ export const ChannelList: React.FC<ChannelListProps> = ({
                             loading="lazy"
                           />
                         ) : (
-                          <Tv className="w-4 h-4 text-slate-600" />
+                          <img
+                            src="https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547"
+                            alt="Nexus"
+                            className="w-6 h-6 object-contain opacity-40 p-0.5"
+                          />
                         )}
                       </div>
                     </td>

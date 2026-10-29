@@ -9,6 +9,7 @@ import { rebuildService } from './src/server/rebuildService';
 import { cloudstreamService } from './src/server/cloudstreamService';
 import { skystreamService } from './src/server/skystreamService';
 import { stremioNuvioService } from './src/server/stremioNuvioService';
+import { eventsService } from './src/server/eventsService';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,11 +24,16 @@ app.use(compression());
 app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ extended: true, limit: '60mb' }));
 
+// Favicon redirect for web browsers and IPTV players
+app.get('/favicon.ico', (req, res) => {
+  return res.redirect('https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547');
+});
+
 // Health Check
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    app: 'Cartel 187',
+    app: 'Nexus Empire',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   });
@@ -208,6 +214,50 @@ app.post('/api/nexusempire/move', (req: Request, res: Response) => {
   }
 });
 
+app.post('/api/nexusempire/move-channels', (req: Request, res: Response) => {
+  try {
+    const { channelIds, category } = req.body;
+    if (!Array.isArray(channelIds) || !category) {
+      return res.status(400).json({ error: 'channelIds and target category are required' });
+    }
+    const moved = playlistService.moveChannelsToCategory(channelIds, category);
+    return res.json({ success: true, movedCount: moved });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/nexusempire/categories/:name', (req: Request, res: Response) => {
+  try {
+    const ok = playlistService.deleteNexusEmpireCategory(req.params.name);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nexusempire/ai-categorize', async (req: Request, res: Response) => {
+  try {
+    const result = await playlistService.aiCategorizeChannels(req.body?.sourceId || 'all');
+    return res.json({ success: true, ...result });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/channels/bulk-prefix-suffix', (req: Request, res: Response) => {
+  try {
+    const { sourceId, config } = req.body;
+    if (!config) {
+      return res.status(400).json({ error: 'config object is required' });
+    }
+    const result = playlistService.applyBulkPrefixSuffix(sourceId || 'all', config);
+    return res.json({ success: true, ...result });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/nexusempire/items/:id/channels', (req: Request, res: Response) => {
   try {
     const result = playlistService.getChannelsForNexusEmpireCategory(req.params.id, true);
@@ -226,7 +276,20 @@ app.get('/api/rebuilt', (req: Request, res: Response) => {
 
 app.post('/api/rebuilt', (req: Request, res: Response) => {
   try {
-    const { name, description, slug, targetType, targetSourceOrCategory, customCategories } = req.body;
+    const {
+      name,
+      description,
+      slug,
+      targetType,
+      targetSourceOrCategory,
+      customCategories,
+      namePrefix,
+      nameSuffix,
+      groupPrefix,
+      groupSuffix,
+      startChannelNumber,
+      enableChannelNumbering,
+    } = req.body;
     if (!name || !targetType) {
       return res.status(400).json({ error: 'Name and targetType are required' });
     }
@@ -237,6 +300,12 @@ app.post('/api/rebuilt', (req: Request, res: Response) => {
       targetType,
       targetSourceOrCategory: targetSourceOrCategory || 'all',
       customCategories: customCategories || { 'Main Bouquet': [] },
+      namePrefix,
+      nameSuffix,
+      groupPrefix,
+      groupSuffix,
+      startChannelNumber,
+      enableChannelNumbering,
     });
     return res.json({ success: true, playlist: created });
   } catch (err: any) {
@@ -1105,35 +1174,68 @@ async function startServer() {
   });
 }
 
-// External JSON Data Endpoints
-app.get('/api/external/fancode', async (req, res) => {
+// ============================================================
+// DEDICATED EVENTS & STREAMS ENDPOINTS (FanCode, SonyLIV, Zee5)
+// ============================================================
+app.get('/api/events/:service', (req: Request, res: Response) => {
+  const service = req.params.service.toLowerCase();
+  if (service === 'all') {
+    return res.json(eventsService.getAllEvents());
+  }
+  if (service === 'fancode' || service === 'sonyliv' || service === 'zee5') {
+    return res.json(eventsService.getEvents(service));
+  }
+  return res.status(404).json({ error: 'Service not found. Valid services: fancode, sonyliv, zee5, all' });
+});
+
+app.get('/api/events/:service.m3u', (req: Request, res: Response) => {
+  const service = req.params.service.toLowerCase() as any;
+  const m3u = eventsService.generateM3U(service);
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', `inline; filename="${service}.m3u"`);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.send(m3u);
+});
+
+// Direct root shortcuts for IPTV Players (OTT Navigator, TiviMate)
+app.get('/fancode.m3u', (req, res) => {
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.send(eventsService.generateM3U('fancode'));
+});
+
+app.get('/sonyliv.m3u', (req, res) => {
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.send(eventsService.generateM3U('sonyliv'));
+});
+
+app.get('/zee5.m3u', (req, res) => {
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.send(eventsService.generateM3U('zee5'));
+});
+
+app.post('/api/events/sync', async (req, res) => {
   try {
-    const response = await fetch('https://raw.githubusercontent.com/doctor-8trange/zyphx8/refs/heads/main/data/fancode.json');
-    const data = await response.json();
-    res.json(data);
+    await eventsService.syncAll();
+    return res.json({ success: true, count: eventsService.getAllEvents().length });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: e.message });
   }
 });
 
-app.get('/api/external/sony', async (req, res) => {
-  try {
-    const response = await fetch('https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.json');
-    const data = await response.json();
-    res.json(data);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
+// External raw JSON endpoints for compatibility
+app.get('/api/external/fancode', (req, res) => {
+  return res.json(eventsService.getEvents('fancode'));
 });
 
-app.get('/api/external/zee5', async (req, res) => {
-  try {
-    const response = await fetch('https://raw.githubusercontent.com/doctor-8trange/quarnex/refs/heads/main/data/zee5.json');
-    const data = await response.json();
-    res.json(data);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
+app.get('/api/external/sony', (req, res) => {
+  return res.json(eventsService.getEvents('sonyliv'));
+});
+
+app.get('/api/external/zee5', (req, res) => {
+  return res.json(eventsService.getEvents('zee5'));
 });
 
 startServer().catch((err) => {

@@ -35,7 +35,13 @@ interface RebuiltPlaylist {
   description: string;
   targetType: 'nexusempire' | 'normal';
   targetSourceOrCategory: string;
-  customCategories: Record<string, string[]>; // categoryName -> channelIds
+  customCategories: Record<string, string[]>;
+  namePrefix?: string;
+  nameSuffix?: string;
+  groupPrefix?: string;
+  groupSuffix?: string;
+  startChannelNumber?: number;
+  enableChannelNumbering?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -250,6 +256,40 @@ export const NexusRebuildView: React.FC<NexusRebuildViewProps> = ({
       `Moved ${selectedPoolChannelIds.length} stream(s) into [${targetCat}]`
     );
     setSelectedPoolChannelIds([]);
+  };
+
+  const handleMoveChannelOrder = (catName: string, channelIndex: number, direction: 'up' | 'down') => {
+    if (!activePlaylist) return;
+    const list = [...(activePlaylist.customCategories[catName] || [])];
+    const targetIndex = direction === 'up' ? channelIndex - 1 : channelIndex + 1;
+    if (targetIndex < 0 || targetIndex >= list.length) return;
+    const temp = list[channelIndex];
+    list[channelIndex] = list[targetIndex];
+    list[targetIndex] = temp;
+    setActivePlaylist({
+      ...activePlaylist,
+      customCategories: {
+        ...activePlaylist.customCategories,
+        [catName]: list,
+      },
+    });
+  };
+
+  const handleSaveActivePlaylist = async () => {
+    if (!activePlaylist) return;
+    try {
+      const res = await fetch(`/api/rebuilt/${activePlaylist.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(activePlaylist),
+      });
+      if (res.ok) {
+        onNotify('success', 'Playlist Saved', `Updated configuration for "${activePlaylist.name}"`);
+        fetchPlaylists();
+      }
+    } catch {
+      onNotify('error', 'Failed to save playlist');
+    }
   };
 
   // Smart Auto-Categorize All Channels into bouquets
@@ -591,6 +631,90 @@ export const NexusRebuildView: React.FC<NexusRebuildViewProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Advanced Prefix, Suffix & Numbering Configuration */}
+            <div className="pt-3 border-t border-white/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className="font-mono">[+]</span>
+                  <span>Playlist Customization: Prefix, Suffix &amp; Numbering</span>
+                </span>
+                <button
+                  onClick={handleSaveActivePlaylist}
+                  className="flex items-center gap-1 px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition-all active:scale-95"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save Config</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Name Prefix</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. [NEXUS] "
+                    value={activePlaylist.namePrefix || ''}
+                    onChange={(e) => setActivePlaylist({ ...activePlaylist, namePrefix: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-[11px] focus:border-amber-400 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Name Suffix</label>
+                  <input
+                    type="text"
+                    placeholder="e.g.  [HD]"
+                    value={activePlaylist.nameSuffix || ''}
+                    onChange={(e) => setActivePlaylist({ ...activePlaylist, nameSuffix: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-[11px] focus:border-amber-400 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Group Prefix</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. VIP · "
+                    value={activePlaylist.groupPrefix || ''}
+                    onChange={(e) => setActivePlaylist({ ...activePlaylist, groupPrefix: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-[11px] focus:border-amber-400 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Group Suffix</label>
+                  <input
+                    type="text"
+                    placeholder="e.g.  (FHD)"
+                    value={activePlaylist.groupSuffix || ''}
+                    onChange={(e) => setActivePlaylist({ ...activePlaylist, groupSuffix: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-[11px] focus:border-amber-400 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 text-xs pt-1">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={!!activePlaylist.enableChannelNumbering}
+                    onChange={(e) => setActivePlaylist({ ...activePlaylist, enableChannelNumbering: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded text-amber-500 bg-black border-slate-700 cursor-pointer"
+                  />
+                  <span>Auto Number Channels (tvg-chno)</span>
+                </label>
+                {activePlaylist.enableChannelNumbering && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400 text-[11px]">Start at:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={activePlaylist.startChannelNumber || 1}
+                      onChange={(e) => setActivePlaylist({ ...activePlaylist, startChannelNumber: parseInt(e.target.value, 10) || 1 })}
+                      className="w-16 px-2 py-0.5 rounded-lg bg-black/40 border border-white/10 text-white font-mono text-xs focus:border-amber-400 outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Rebuilder Two-Pane Workspace */}
@@ -838,8 +962,9 @@ export const NexusRebuildView: React.FC<NexusRebuildViewProps> = ({
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
-                        {chIds.map((chId) => {
+                        {chIds.map((chId, idx) => {
                           const channel = channelMap.get(chId);
+                          const chLogo = channel?.customLogo || channel?.tvgLogo || channel?.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
                           return (
                             <div
                               key={chId}
@@ -847,16 +972,37 @@ export const NexusRebuildView: React.FC<NexusRebuildViewProps> = ({
                             >
                               <div className="flex items-center gap-2 min-w-0 flex-1">
                                 <div className="w-6 h-6 rounded bg-black/60 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                                  {channel?.logo ? (
-                                    <img src={channel.logo} alt="" className="w-full h-full object-contain" />
-                                  ) : (
-                                    <Radio className="w-3 h-3 text-slate-400" />
-                                  )}
+                                  <img
+                                    src={chLogo}
+                                    alt=""
+                                    className="w-full h-full object-contain"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
+                                    }}
+                                  />
                                 </div>
                                 <span className="truncate font-medium">{channel?.name || chId}</span>
                               </div>
 
                               <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveChannelOrder(catName, idx, 'up')}
+                                  disabled={idx === 0}
+                                  className="p-1 hover:text-amber-300 disabled:opacity-20 text-slate-400 text-[10px]"
+                                  title="Move Up"
+                                >
+                                  ▲
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveChannelOrder(catName, idx, 'down')}
+                                  disabled={idx === chIds.length - 1}
+                                  className="p-1 hover:text-amber-300 disabled:opacity-20 text-slate-400 text-[10px]"
+                                  title="Move Down"
+                                >
+                                  ▼
+                                </button>
                                 {channel && (
                                   <button
                                     onClick={() => onPreviewChannel(channel)}
@@ -868,7 +1014,7 @@ export const NexusRebuildView: React.FC<NexusRebuildViewProps> = ({
                                 )}
                                 <button
                                   onClick={() => handleRemoveChannelFromCategory(catName, chId)}
-                                  className="p-1 hover:text-rose-400 text-slate-400"
+                                  className="p-1 hover:text-rose-400 text-slate-400 font-bold"
                                   title="Remove"
                                 >
                                   &times;

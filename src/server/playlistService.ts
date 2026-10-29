@@ -6,12 +6,14 @@ import {
   AniNexusItem,
   ChannelItem,
   PlaylistSettings,
+  PrefixSuffixConfig,
 } from '../types';
 import {
   deduplicateChannelList,
   normalizeStreamUrl,
   DeduplicationResult,
 } from './deduplicator';
+import { aiService } from './aiService';
 
 export interface CustomizationData {
   sources: PlaylistSource[];
@@ -273,16 +275,23 @@ export const DEFAULT_ANINEXUS = DEFAULT_NEXUSEMPIRE;
 export const DEFAULT_NEXUSEMPIRE_CATEGORIES = [
   'Entertainment & Movies',
   'Live Sports',
+  'Live Cricket',
   'Star Sports',
   'Cricket Exclusive',
   'Sony Entertainment',
+  'Sony Sports',
+  'Sony Movies',
+  'Sony SAB & Comedy',
   'JioTV & Multiplex',
   'Jio Sports',
   'News & Info',
+  'Kids & Animation',
+  'Music & Youth',
+  'Regional Channels',
 ];
 
 const DEFAULT_SETTINGS: PlaylistSettings = {
-  syncIntervalMinutes: 15,
+  syncIntervalMinutes: 7, // Auto fetch every 7 minutes as requested
   autoSync: true,
   userAgent: 'TiviMate/5.1.0 (Linux; Android 12) curl/8.0.0',
   customTvgUrl: '',
@@ -1018,6 +1027,91 @@ class PlaylistService {
     return true;
   }
 
+  public deleteNexusEmpireCategory(catName: string): boolean {
+    const idx = this.nexusempireCategories.indexOf(catName);
+    if (idx !== -1) {
+      this.nexusempireCategories.splice(idx, 1);
+      // Reassign any items in that category to 'General'
+      for (const item of this.nexusempireItems) {
+        if (item.category === catName) {
+          item.category = 'Entertainment & Movies';
+        }
+      }
+      this.saveCustomizations();
+      return true;
+    }
+    return false;
+  }
+
+  public moveChannelsToCategory(channelIds: string[], targetCategory: string): number {
+    const cleanCat = targetCategory ? targetCategory.trim() : 'General';
+    let affected = 0;
+    const all = this.getAllChannels();
+
+    for (const cId of channelIds) {
+      const ch = all.find((c) => c.id === cId);
+      if (ch) {
+        ch.customGroup = cleanCat;
+        if (!this.channelOverrides[ch.id]) this.channelOverrides[ch.id] = {};
+        this.channelOverrides[ch.id].customGroup = cleanCat;
+        affected++;
+      }
+    }
+
+    this.saveCustomizations();
+    return affected;
+  }
+
+  public async aiCategorizeChannels(sourceIdOrAll = 'all'): Promise<{ affected: number; categories: string[] }> {
+    const channels = this.getAllChannels(sourceIdOrAll);
+    const categoryMap = await aiService.categorizeChannels(
+      channels.map((c) => ({ id: c.id, name: c.customName || c.name, group: c.customGroup || c.groupTitle }))
+    );
+
+    let affected = 0;
+    const newCategories = new Set<string>();
+
+    for (const ch of channels) {
+      const assignedCat = categoryMap[ch.id];
+      if (assignedCat && (ch.customGroup || ch.groupTitle) !== assignedCat) {
+        ch.customGroup = assignedCat;
+        if (!this.channelOverrides[ch.id]) this.channelOverrides[ch.id] = {};
+        this.channelOverrides[ch.id].customGroup = assignedCat;
+        newCategories.add(assignedCat);
+        affected++;
+      }
+    }
+
+    for (const cat of newCategories) {
+      if (!this.nexusempireCategories.includes(cat)) {
+        this.nexusempireCategories.push(cat);
+      }
+    }
+
+    this.saveCustomizations();
+    return { affected, categories: Array.from(newCategories) };
+  }
+
+  public applyBulkPrefixSuffix(
+    sourceIdOrAll: string,
+    config: PrefixSuffixConfig
+  ): { affected: number } {
+    const channels = this.getAllChannels(sourceIdOrAll);
+    const result = aiService.applyPrefixSuffix(channels, config);
+
+    for (const ch of channels) {
+      if (ch.customName || ch.customGroup || ch.customChno) {
+        if (!this.channelOverrides[ch.id]) this.channelOverrides[ch.id] = {};
+        if (ch.customName) this.channelOverrides[ch.id].customName = ch.customName;
+        if (ch.customGroup) this.channelOverrides[ch.id].customGroup = ch.customGroup;
+        if (ch.customChno) this.channelOverrides[ch.id].customChno = ch.customChno;
+      }
+    }
+
+    this.saveCustomizations();
+    return { affected: result.affected };
+  }
+
   public getSources(): PlaylistSource[] {
     return this.sources;
   }
@@ -1060,6 +1154,12 @@ class PlaylistService {
 
     fs.writeFileSync(savedPath, content, 'utf-8');
 
+    // Parse immediately and synchronously so channels are instant
+    const cleanContent = content.replace(/^\uFEFF/, '');
+    const { channels, headers } = this.parseM3UContent(cleanContent, id);
+    this.channelsBySource[id] = channels;
+    this.sourceHeaders[id] = headers;
+
     const newSource: PlaylistSource = {
       id,
       slug: cleanSlug,
@@ -1068,15 +1168,16 @@ class PlaylistService {
       type: 'uploaded',
       filePath: savedPath,
       enabled: true,
-      lastSyncTime: null,
-      status: 'idle',
+      lastSyncTime: new Date().toISOString(),
+      status: 'success',
       errorMessage: null,
-      channelCount: 0,
+      channelCount: channels.length,
     };
 
     this.sources.push(newSource);
+    this.applyCustomizations();
+    this.saveCache();
     this.saveCustomizations();
-    this.fetchSingleSource(id).catch((e) => console.error(e));
     return newSource;
   }
 
@@ -1403,7 +1504,9 @@ class PlaylistService {
     const groups = new Set(all.map((c) => c.customGroup || c.groupTitle));
 
     const isAnyFetching = this.sources.some((s) => s.status === 'fetching') || this.isSyncingAll;
-    const hasAnyError = this.sources.some((s) => s.status === 'error');
+    const enabledSources = this.sources.filter((s) => s.enabled);
+    const hasAnyError = enabledSources.some((s) => s.status === 'error');
+    const allFailed = enabledSources.length > 0 && enabledSources.every((s) => s.status === 'error') && all.length === 0;
 
     const dedupReport = deduplicateChannelList(active, {
       mode: this.settings.dedupMode || 'smart',
@@ -1413,7 +1516,7 @@ class PlaylistService {
     return {
       lastSyncTime: this.lastSyncTime ? this.lastSyncTime.toISOString() : null,
       nextSyncTime: this.nextSyncTime ? this.nextSyncTime.toISOString() : null,
-      status: isAnyFetching ? 'fetching' : hasAnyError ? 'error' : 'success',
+      status: isAnyFetching ? 'fetching' : allFailed ? 'error' : 'success',
       errorMessage: hasAnyError
         ? this.sources.filter((s) => s.errorMessage).map((s) => `${s.name}: ${s.errorMessage}`).join('; ')
         : null,

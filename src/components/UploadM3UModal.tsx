@@ -43,8 +43,9 @@ export const UploadM3UModal: React.FC<UploadM3UModalProps> = ({ onClose, onUploa
     setError(null);
 
     try {
-      const content = await file.text();
-      if (!content.includes('#EXTM3U') && !content.includes('#EXTINF')) {
+      const raw = await file.text();
+      const content = raw.replace(/^\uFEFF/, '').trim();
+      if (!/#EXTM3U|#EXTINF|https?:\/\//i.test(content)) {
         throw new Error('Selected file does not appear to be a valid M3U playlist');
       }
 
@@ -64,7 +65,8 @@ export const UploadM3UModal: React.FC<UploadM3UModalProps> = ({ onClose, onUploa
         throw new Error(data.error || 'Failed to upload playlist');
       }
 
-      const fullUrl = `${window.location.origin}${data.m3uUrl}`;
+      const cleanOrigin = window.location.origin.replace(':8443', '');
+      const fullUrl = `${cleanOrigin}${data.m3uUrl}`;
       setResultUrl(fullUrl);
       onUploaded({
         name: data.source.name,

@@ -16,6 +16,9 @@ import { ChannelList } from './components/ChannelList';
 import { GroupManager } from './components/GroupManager';
 import { NexusEmpireView } from './components/NexusEmpireView';
 import { NexusRebuildView } from './components/NexusRebuildView';
+import { FanCodeView } from './components/FanCodeView';
+import { SonyLivView } from './components/SonyLivView';
+import { Zee5View } from './components/Zee5View';
 import { CloudStreamView } from './components/CloudStreamView';
 import { SkyStreamView } from './components/SkyStreamView';
 import { StremioNuvioView } from './components/StremioNuvioView';
@@ -610,6 +613,30 @@ export default function App() {
             onNotify={notify}
             publicBaseUrl={settings.publicBaseUrl}
             sources={sources}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+
+        {activeTab === 'fancode' && (
+          <FanCodeView
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+
+        {activeTab === 'sonyliv' && (
+          <SonyLivView
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+
+        {activeTab === 'zee5' && (
+          <Zee5View
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
             onPreviewChannel={(ch) => setPreviewingChannel(ch)}
           />
         )}

@@ -53,6 +53,8 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
   const [editingItem, setEditingItem] = useState<NexusEmpireItem | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [isPrefixSuffixOpen, setIsPrefixSuffixOpen] = useState(false);
+  const [isAiCategorizing, setIsAiCategorizing] = useState(false);
   const [editingChannel, setEditingChannel] = useState<{ channel: ChannelItem; empireId: string } | null>(null);
 
   // Form states
@@ -64,6 +66,13 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
   const [newItemDesc, setNewItemDesc] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [targetMoveCategory, setTargetMoveCategory] = useState('');
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
+  const [prefixConfig, setPrefixConfig] = useState({
+    namePrefix: '',
+    nameSuffix: '',
+    groupPrefix: '',
+    groupSuffix: '',
+  });
 
   const baseUrl = publicBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
 
@@ -260,6 +269,82 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
     }
   };
 
+  const handleDeleteCategory = async (catName: string) => {
+    if (!confirm(`Delete category "${catName}"? Channels will be reassigned.`)) return;
+    try {
+      const res = await fetch(`/api/nexusempire/categories/${encodeURIComponent(catName)}`, { method: 'DELETE' });
+      if (res.ok) {
+        onNotify('success', 'Category Deleted', catName);
+        fetchData();
+      }
+    } catch {
+      onNotify('error', 'Failed to delete category');
+    }
+  };
+
+  const handleMoveChannelsToCategory = async (cat: string) => {
+    if (selectedChannelIds.length === 0 || !cat) return;
+    try {
+      const res = await fetch('/api/nexusempire/move-channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelIds: selectedChannelIds, category: cat }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onNotify('success', 'Moved Channels', `Moved ${data.movedCount} channels to "${cat}"`);
+        setSelectedChannelIds([]);
+        fetchData();
+        setCategoryChannels({});
+      }
+    } catch {
+      onNotify('error', 'Failed to move channels');
+    }
+  };
+
+  const handleAiCategorize = async () => {
+    setIsAiCategorizing(true);
+    try {
+      const res = await fetch('/api/nexusempire/ai-categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId: 'all' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onNotify('success', 'AI Categorization Complete', `Auto-classified ${data.affected} channels into curated categories!`);
+        fetchData();
+        setCategoryChannels({});
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      onNotify('error', 'AI Categorization Failed', err.message);
+    } finally {
+      setIsAiCategorizing(false);
+    }
+  };
+
+  const handleApplyPrefixSuffix = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/channels/bulk-prefix-suffix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId: 'all', config: prefixConfig }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onNotify('success', 'Prefix/Suffix Applied', `Updated ${data.affected} channels successfully.`);
+        setIsPrefixSuffixOpen(false);
+        fetchData();
+        setCategoryChannels({});
+      }
+    } catch (err: any) {
+      onNotify('error', 'Failed to apply prefix/suffix', err.message);
+    }
+  };
+
   const handleSaveChannelEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingChannel) return;
@@ -357,10 +442,10 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
               </span>
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-900/90 border border-amber-500/40 hover:border-amber-400 text-amber-300 text-xs font-semibold transition-colors"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/90 border border-amber-500/40 hover:border-amber-400 text-amber-300 text-xs font-semibold transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Stream</span>
@@ -368,10 +453,29 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
 
               <button
                 onClick={() => setIsCategoryModalOpen(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-slate-600 text-slate-300 text-xs font-semibold transition-colors"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-slate-600 text-slate-300 text-xs font-semibold transition-colors"
               >
                 <FolderPlus className="w-3.5 h-3.5 text-indigo-400" />
                 <span>Categories</span>
+              </button>
+
+              <button
+                onClick={handleAiCategorize}
+                disabled={isAiCategorizing}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-bold transition-all shadow-md active:scale-95"
+                title="AI Auto-Categorize channels into bouquets"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isAiCategorizing ? 'animate-spin' : ''}`} />
+                <span>{isAiCategorizing ? 'AI Running...' : 'AI Categorize'}</span>
+              </button>
+
+              <button
+                onClick={() => setIsPrefixSuffixOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-slate-600 text-slate-300 text-xs font-semibold transition-colors"
+                title="Add custom prefix or suffix to stream names and groups"
+              >
+                <span className="font-mono text-amber-400 font-bold text-xs">[+]</span>
+                <span>Prefix/Suffix</span>
               </button>
             </div>
           </div>
@@ -620,39 +724,91 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
                       No channels matched for this category.
                     </div>
                   ) : (
-                    <div className="max-h-72 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
-                      {channelsData.channels.map((ch) => (
-                        <div
-                          key={ch.id}
-                          className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 flex items-center justify-between gap-3 text-xs"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-7 h-7 rounded-lg bg-slate-950 flex items-center justify-center overflow-hidden shrink-0">
-                              <img
-                                src={ch.customLogo || ch.tvgLogo || item.logo}
-                                alt={ch.name}
-                                className="w-full h-full object-contain"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
-                                }}
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-white truncate text-xs">
-                                  {ch.customName || ch.name}
-                                </span>
-                                {ch.streamVariant && ch.streamVariant > 1 && (
-                                  <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-500/40 text-[9px] font-mono font-bold text-amber-300">
-                                    Variant {ch.streamVariant}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-slate-500 truncate block font-mono">
-                                {ch.customUrl || ch.url}
-                              </span>
-                            </div>
+                    <div className="space-y-2">
+                      {/* Floating Multi-select bar */}
+                      {selectedChannelIds.length > 0 && (
+                        <div className="p-2.5 bg-amber-950/80 border border-amber-500/40 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <span className="font-bold text-amber-200">
+                            {selectedChannelIds.length} stream(s) selected
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={targetMoveCategory}
+                              onChange={(e) => setTargetMoveCategory(e.target.value)}
+                              className="bg-slate-900 border border-amber-500/40 rounded-lg px-2 py-1 text-white text-[11px]"
+                            >
+                              {categories.map((c) => (
+                                <option key={c.name} value={c.name}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleMoveChannelsToCategory(targetMoveCategory)}
+                              className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px]"
+                            >
+                              Move
+                            </button>
+                            <button
+                              onClick={() => setSelectedChannelIds([])}
+                              className="text-slate-400 hover:text-white px-2 py-1 text-[11px]"
+                            >
+                              Clear
+                            </button>
                           </div>
+                        </div>
+                      )}
+
+                      <div className="max-h-72 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                        {channelsData?.channels?.map((ch) => {
+                          const isSelected = selectedChannelIds.includes(ch.id);
+                          return (
+                            <div
+                              key={ch.id}
+                              className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 text-xs ${
+                                isSelected
+                                  ? 'bg-amber-950/50 border-amber-500/50 text-white'
+                                  : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedChannelIds((prev) =>
+                                      prev.includes(ch.id) ? prev.filter((id) => id !== ch.id) : [...prev, ch.id]
+                                    );
+                                  }}
+                                  className="w-3.5 h-3.5 rounded text-amber-500 bg-slate-950 border-slate-700 cursor-pointer shrink-0"
+                                />
+                                <div className="w-7 h-7 rounded-lg bg-slate-950 flex items-center justify-center overflow-hidden shrink-0">
+                                  <img
+                                    src={ch.customLogo || ch.tvgLogo || ch.logo || item.logo}
+                                    alt={ch.name}
+                                    className="w-full h-full object-contain"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
+                                    }}
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-white truncate text-xs">
+                                      {ch.customName || ch.name}
+                                    </span>
+                                    {ch.streamVariant && ch.streamVariant > 1 && (
+                                      <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-500/40 text-[9px] font-mono font-bold text-amber-300">
+                                        Variant {ch.streamVariant}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-slate-500 truncate block font-mono">
+                                    {ch.customUrl || ch.url}
+                                  </span>
+                                </div>
+                              </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
                             {onPreviewChannel && (
@@ -672,8 +828,10 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
                               <Edit2 className="w-3 h-3" />
                             </button>
                           </div>
-                        </div>
-                      ))}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -937,7 +1095,17 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
                   className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs text-slate-300"
                 >
                   <span className="font-semibold">{cat.name}</span>
-                  <span className="text-[11px] font-mono text-slate-500">{cat.count} streams</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono text-slate-500">{cat.count} streams</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCategory(cat.name)}
+                      className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                      title="Delete category"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1080,6 +1248,90 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
                   className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-500 text-white font-bold"
                 >
                   Save Stream
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* BULK PREFIX & SUFFIX MODAL */}
+      {isPrefixSuffixOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 animate-fadeIn">
+          <div className="bg-slate-900 border border-amber-500/40 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-black text-base text-white font-mono flex items-center gap-2">
+                <span className="font-mono text-amber-400 font-bold">[+]</span>
+                <span>Bulk Prefix &amp; Suffix Tool</span>
+              </h3>
+              <button onClick={() => setIsPrefixSuffixOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleApplyPrefixSuffix} className="space-y-3.5 text-xs">
+              <p className="text-slate-400 leading-relaxed text-[11px]">
+                Add custom prefixes and suffixes across all channel names and group categories in one click.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Channel Name Prefix</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. [NEXUS] "
+                    value={prefixConfig.namePrefix}
+                    onChange={(e) => setPrefixConfig({ ...prefixConfig, namePrefix: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Channel Name Suffix</label>
+                  <input
+                    type="text"
+                    placeholder="e.g.  [HD]"
+                    value={prefixConfig.nameSuffix}
+                    onChange={(e) => setPrefixConfig({ ...prefixConfig, nameSuffix: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Group Title Prefix</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. VIP · "
+                    value={prefixConfig.groupPrefix}
+                    onChange={(e) => setPrefixConfig({ ...prefixConfig, groupPrefix: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Group Title Suffix</label>
+                  <input
+                    type="text"
+                    placeholder="e.g.  (FHD)"
+                    value={prefixConfig.groupSuffix}
+                    onChange={(e) => setPrefixConfig({ ...prefixConfig, groupSuffix: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPrefixSuffixOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/20"
+                >
+                  Apply Across All Channels
                 </button>
               </div>
             </form>
