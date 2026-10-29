@@ -37,6 +37,7 @@ export const FanCodeView: React.FC<FanCodeViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSport, setSelectedSport] = useState<string>('all');
+  const [activeServerTab, setActiveServerTab] = useState<'all' | 'server1' | 'server2'>('all');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -185,6 +186,8 @@ export const FanCodeView: React.FC<FanCodeViewProps> = ({
   const categories = Array.from(new Set(events.map((e) => e.category || e.sport || 'Cricket & Sports').filter(Boolean)));
 
   const filteredEvents = events.filter((e) => {
+    const matchesServer = activeServerTab === 'all' || e.serverId === activeServerTab || !e.serverId;
+
     const matchesSearch =
       (e.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (e.category || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -193,7 +196,7 @@ export const FanCodeView: React.FC<FanCodeViewProps> = ({
     const matchesSport =
       selectedSport === 'all' || (e.sport || e.category || '').toLowerCase() === selectedSport.toLowerCase();
 
-    return matchesSearch && matchesSport;
+    return matchesServer && matchesSearch && matchesSport;
   });
 
   return (
@@ -211,7 +214,7 @@ export const FanCodeView: React.FC<FanCodeViewProps> = ({
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30">
                   LIVE SPORTS
                 </span>
-                <span className="text-[11px] text-slate-400">Auto-syncs every 7 minutes</span>
+                <span className="text-[11px] text-slate-400">Dual-Server Hybrid Fetcher (7m)</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">FanCode Live Events</h1>
               <p className="text-xs text-slate-400 mt-1">
@@ -256,6 +259,43 @@ export const FanCodeView: React.FC<FanCodeViewProps> = ({
               <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Top Server Selection Sub-Tabs */}
+      <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-800 p-2.5 rounded-2xl">
+        <span className="text-[11px] font-mono text-slate-400 font-bold uppercase px-2 shrink-0">FanCode Servers:</span>
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          <button
+            onClick={() => setActiveServerTab('all')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              activeServerTab === 'all'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'bg-slate-950 text-slate-300 hover:text-white border border-slate-800'
+            }`}
+          >
+            All Servers ({events.length})
+          </button>
+          <button
+            onClick={() => setActiveServerTab('server1')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              activeServerTab === 'server1'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'bg-slate-950 text-slate-300 hover:text-white border border-slate-800'
+            }`}
+          >
+            Server 1 (ZyphX)
+          </button>
+          <button
+            onClick={() => setActiveServerTab('server2')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              activeServerTab === 'server2'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'bg-slate-950 text-slate-300 hover:text-white border border-slate-800'
+            }`}
+          >
+            Server 2 (DRMLive)
+          </button>
         </div>
       </div>
 

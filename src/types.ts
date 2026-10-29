@@ -132,6 +132,7 @@ export interface SportsEventItem {
   logo?: string;
   url: string;
   service: 'fancode' | 'sonyliv' | 'zee5' | 'other';
+  serverId?: 'server1' | 'server2';
   enabled?: boolean;
   raw?: any;
 }

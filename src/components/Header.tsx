@@ -31,6 +31,7 @@ export type AppTab =
   | 'cloudstream'
   | 'skystream'
   | 'stremio'
+  | 'duplicates'
   | 'sports'
   | 'groups'
   | 'raw';
@@ -91,6 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'channels', label: 'All Streams', icon: <Tv className="w-3.5 h-3.5" /> },
     { id: 'playlists', label: 'Playlists', icon: <ListMusic className="w-3.5 h-3.5 text-cyan-400" />, badge: 'HUB' },
     { id: 'nexusempire', label: 'Nexus Empire', icon: <Radio className="w-3.5 h-3.5 text-amber-400" /> },
+    { id: 'duplicates', label: 'AI Deduplicator', icon: <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />, badge: 'AI' },
     { id: 'rebuild', label: 'Nexus Rebuild', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" />, badge: 'PRO' },
     { id: 'fancode', label: 'FanCode Live', icon: <Trophy className="w-3.5 h-3.5 text-amber-400" />, badge: 'LIVE' },
     { id: 'sonyliv', label: 'SonyLIV Hub', icon: <Tv className="w-3.5 h-3.5 text-indigo-400" />, badge: 'SONY' },
@@ -119,13 +121,14 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 sm:gap-2.5">
             {/* Deduplication Shield */}
             {dedupStats && dedupStats.exactDuplicatesRemoved > 0 && (
-              <div
-                className="hidden xl:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-400/30 px-2.5 py-1.5 rounded-xl text-[11px] text-emerald-300 "
-                title={`${dedupStats.exactDuplicatesRemoved} duplicates filtered.`}
+              <button
+                onClick={() => onSelectTab('duplicates')}
+                className="hidden xl:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-400/30 hover:border-emerald-400/60 px-2.5 py-1.5 rounded-xl text-[11px] text-emerald-300 transition-all cursor-pointer"
+                title={`${dedupStats.exactDuplicatesRemoved} duplicates filtered. Click to inspect & recover.`}
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="font-semibold">{dedupStats.exactDuplicatesRemoved} Dups Filtered</span>
-              </div>
+              </button>
             )}
 
             {/* Next Refresh Timer */}

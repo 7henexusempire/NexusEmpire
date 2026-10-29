@@ -82,63 +82,45 @@ export class EventsService {
     }, 1000);
   }
 
-  private async fetchWithFallback(primaryUrl: string, backupUrl?: string, isJson = false): Promise<any> {
-    try {
-      const res = await fetch(primaryUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: '*/*',
-        },
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return isJson ? await res.json() : await res.text();
-    } catch (primaryErr) {
-      if (backupUrl) {
-        console.warn(`[EventsService] Primary URL failed (${primaryUrl}), trying backup ${backupUrl}...`);
-        try {
-          const resBackup = await fetch(backupUrl, {
-            headers: {
-              'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              Accept: '*/*',
-            },
-            signal: AbortSignal.timeout(15000),
-          });
-          if (!resBackup.ok) throw new Error(`HTTP ${resBackup.status}`);
-          return isJson ? await resBackup.json() : await resBackup.text();
-        } catch (backupErr) {
-          throw new Error(`Both primary and backup failed: ${backupErr}`);
-        }
-      }
-      throw primaryErr;
-    }
+  private async fetchRawUrl(url: string, isJson = false): Promise<any> {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: '*/*',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return isJson ? await res.json() : await res.text();
   }
 
-  public async fetchService(service: 'fancode' | 'sonyliv' | 'zee5') {
-    const config = SOURCES[service];
+  /**
+   * Smart Hybrid Fetcher:
+   * Fetches JSON thumbnail details & tournament info + M3U stream URLs for a single server endpoint
+   */
+  private async fetchSingleServerEvents(
+    service: 'fancode' | 'sonyliv' | 'zee5',
+    serverId: 'server1' | 'server2',
+    jsonUrl: string,
+    m3uUrl: string
+  ): Promise<SportsEventItem[]> {
     let jsonData: any = null;
     let m3uText = '';
 
-    // Fetch JSON
     try {
-      jsonData = await this.fetchWithFallback(config.primaryJson, config.backupJson, true);
+      jsonData = await this.fetchRawUrl(jsonUrl, true);
     } catch (err: any) {
-      console.warn(`[EventsService] Failed to fetch ${service} JSON:`, err.message);
+      console.warn(`[EventsService] ${service} ${serverId} JSON fetch error:`, err.message);
     }
 
-    // Fetch M3U
     try {
-      m3uText = await this.fetchWithFallback(config.primaryM3u, config.backupM3u, false);
-      if (m3uText) {
-        this.m3uContent[service] = m3uText.replace(/:8443/g, '').replace(/:3000/g, '');
-      }
+      m3uText = await this.fetchRawUrl(m3uUrl, false);
     } catch (err: any) {
-      console.warn(`[EventsService] Failed to fetch ${service} M3U:`, err.message);
+      console.warn(`[EventsService] ${service} ${serverId} M3U fetch error:`, err.message);
     }
 
-    // Extract stream entries from M3U line-by-line cleanly
+    // Parse M3U stream entries
     interface M3uStreamEntry {
       title: string;
       logo: string;
@@ -187,7 +169,7 @@ export class EventsService {
       }
     }
 
-    // Extract list array from jsonData if present
+    // Parse JSON items
     let jsonArray: any[] = [];
     if (Array.isArray(jsonData)) {
       jsonArray = jsonData;
@@ -203,7 +185,7 @@ export class EventsService {
         [];
     }
 
-    const parsedEvents: SportsEventItem[] = [];
+    const items: SportsEventItem[] = [];
 
     if (jsonArray.length > 0) {
       for (let i = 0; i < jsonArray.length; i++) {
@@ -218,7 +200,7 @@ export class EventsService {
 
         let logo = item.image || item.logo || item.src || item.banner || item.poster || item.tvg_logo || '';
 
-        // Match with M3U if streamUrl is missing
+        // Match with M3U for missing streamUrl or logo
         const matched = streamLookup.get(normKey);
         if (matched) {
           if (!streamUrl) streamUrl = matched.url;
@@ -227,15 +209,18 @@ export class EventsService {
 
         const isLive = item.is_live || item.status === 'LIVE' || item.live || title.toLowerCase().includes('live');
 
-        parsedEvents.push({
-          id: `${service}_${item.id || i}_${i}`,
+        // Keep category names clean without Server 1 or Server 2 labels
+        const cleanCategory =
+          item.category ||
+          item.tournament_name ||
+          item.event_category ||
+          matched?.group ||
+          (service === 'fancode' ? 'Cricket & Sports' : service === 'sonyliv' ? 'Sony Sports' : 'Zee Live');
+
+        items.push({
+          id: `${service}_${serverId}_${item.id || i}_${i}`,
           title,
-          category:
-            item.category ||
-            item.tournament_name ||
-            item.event_category ||
-            matched?.group ||
-            (service === 'fancode' ? 'Cricket & Sports' : service === 'sonyliv' ? 'Sony Sports' : 'Zee Live'),
+          category: cleanCategory,
           sport: item.sport || item.sport_type || 'Sports',
           status: isLive ? 'LIVE' : item.status || 'UPCOMING',
           startTime: item.start_time || item.startTime || item.time || '',
@@ -244,27 +229,51 @@ export class EventsService {
           logo: logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
           url: streamUrl || (matched ? matched.url : ''),
           service,
+          serverId,
           raw: item,
         });
       }
     } else if (m3uEntries.length > 0) {
-      // Build events directly from parsed M3U entries if JSON list was empty
       let idx = 0;
       for (const entry of m3uEntries) {
-        parsedEvents.push({
-          id: `${service}_m3u_${idx++}`,
+        items.push({
+          id: `${service}_${serverId}_m3u_${idx++}`,
           title: entry.title,
           category: entry.group || `${service.toUpperCase()} Live`,
           status: 'LIVE',
           logo: entry.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
           url: entry.url,
           service,
+          serverId,
         });
       }
     }
 
-    if (parsedEvents.length > 0) {
-      this.events[service] = parsedEvents;
+    return items;
+  }
+
+  public async fetchService(service: 'fancode' | 'sonyliv' | 'zee5') {
+    const config = SOURCES[service];
+    const server1Items = await this.fetchSingleServerEvents(
+      service,
+      'server1',
+      config.primaryJson,
+      config.primaryM3u
+    );
+
+    let server2Items: SportsEventItem[] = [];
+    if (config.backupJson && config.backupM3u) {
+      server2Items = await this.fetchSingleServerEvents(
+        service,
+        'server2',
+        config.backupJson,
+        config.backupM3u
+      );
+    }
+
+    const combined = [...server1Items, ...server2Items];
+    if (combined.length > 0) {
+      this.events[service] = combined;
       this.lastFetchTime[service] = new Date().toISOString();
     }
   }
@@ -273,9 +282,13 @@ export class EventsService {
     if (this.isFetching) return;
     this.isFetching = true;
     try {
-      await Promise.allSettled([this.fetchService('fancode'), this.fetchService('sonyliv'), this.fetchService('zee5')]);
+      await Promise.allSettled([
+        this.fetchService('fancode'),
+        this.fetchService('sonyliv'),
+        this.fetchService('zee5'),
+      ]);
       console.log(
-        `[EventsService] 7-Min Sync Complete: FanCode (${this.events.fancode.length}), SonyLIV (${this.events.sonyliv.length}), Zee5 (${this.events.zee5.length})`
+        `[EventsService] Multi-Server Sync Complete: FanCode (${this.events.fancode.length}), SonyLIV (${this.events.sonyliv.length}), Zee5 (${this.events.zee5.length})`
       );
     } finally {
       this.isFetching = false;
@@ -298,25 +311,33 @@ export class EventsService {
     if (updates.logo !== undefined) this.overrides[id].customLogo = updates.logo;
     if (updates.url !== undefined) this.overrides[id].customUrl = updates.url;
     if (updates.enabled !== undefined) this.overrides[id].enabled = updates.enabled;
-    return true;
   }
 
   public deleteEvent(id: string) {
     this.deletedIds.add(id);
-    return true;
   }
 
-  public addCustomEvent(item: Omit<SportsEventItem, 'id'>) {
-    const id = `custom_${item.service}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    const newEvent: SportsEventItem = {
-      ...item,
+  public addCustomEvent(event: Partial<SportsEventItem>): SportsEventItem {
+    const id = `custom_event_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const newEv: SportsEventItem = {
       id,
+      title: event.title || 'Custom Live Event',
+      category: event.category || 'Live Events',
+      logo: event.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
+      url: event.url || '',
+      service: event.service || 'fancode',
+      serverId: event.serverId || 'server1',
+      status: 'LIVE',
     };
-    this.customEvents.push(newEvent);
-    return newEvent;
+    this.customEvents.push(newEv);
+    return newEv;
   }
 
-  public bulkSetCategoryLogo(service: 'fancode' | 'sonyliv' | 'zee5' | 'all', categoryName: string, logoUrl: string) {
+  public bulkSetCategoryLogo(
+    service: 'fancode' | 'sonyliv' | 'zee5' | 'all',
+    categoryName: string,
+    logoUrl: string
+  ) {
     const list = service === 'all' ? this.getAllEvents() : this.getEvents(service);
     let count = 0;
     for (const item of list) {
@@ -329,7 +350,11 @@ export class EventsService {
     return count;
   }
 
-  public renameCategory(service: 'fancode' | 'sonyliv' | 'zee5' | 'all', oldCategory: string, newCategory: string) {
+  public renameCategory(
+    service: 'fancode' | 'sonyliv' | 'zee5' | 'all',
+    oldCategory: string,
+    newCategory: string
+  ) {
     const list = service === 'all' ? this.getAllEvents() : this.getEvents(service);
     let count = 0;
     for (const item of list) {
@@ -342,10 +367,22 @@ export class EventsService {
     return count;
   }
 
-  public getEvents(service: 'fancode' | 'sonyliv' | 'zee5'): SportsEventItem[] {
-    const baseList = [...(this.events[service] || []), ...this.customEvents.filter((e) => e.service === service)];
-    return baseList
-      .filter((item) => !this.deletedIds.has(item.id))
+  public getEvents(
+    service: 'fancode' | 'sonyliv' | 'zee5',
+    serverId?: 'server1' | 'server2' | 'all'
+  ): SportsEventItem[] {
+    const baseList = [
+      ...(this.events[service] || []),
+      ...this.customEvents.filter((e) => e.service === service),
+    ];
+
+    let filtered = baseList.filter((item) => !this.deletedIds.has(item.id));
+
+    if (serverId && serverId !== 'all') {
+      filtered = filtered.filter((item) => item.serverId === serverId);
+    }
+
+    return filtered
       .map((item) => {
         const ov = this.overrides[item.id];
         if (!ov) return item;
@@ -362,11 +399,21 @@ export class EventsService {
   }
 
   public getAllEvents(): SportsEventItem[] {
-    return [...this.getEvents('fancode'), ...this.getEvents('sonyliv'), ...this.getEvents('zee5')];
+    return [
+      ...this.getEvents('fancode'),
+      ...this.getEvents('sonyliv'),
+      ...this.getEvents('zee5'),
+    ];
   }
 
-  public generateM3U(service: 'fancode' | 'sonyliv' | 'zee5' | 'all'): string {
-    const list = service === 'all' ? this.getAllEvents() : this.getEvents(service);
+  public generateM3U(
+    service: 'fancode' | 'sonyliv' | 'zee5' | 'all',
+    serverId?: 'server1' | 'server2' | 'all'
+  ): string {
+    const list =
+      service === 'all'
+        ? this.getAllEvents()
+        : this.getEvents(service, serverId);
     const serviceName = service.toUpperCase();
 
     const lines: string[] = [
@@ -378,22 +425,17 @@ export class EventsService {
 
     for (const item of list) {
       if (!item.url) continue;
-      const logo =
-        item.logo || item.poster || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
-      const cat = item.category || `${item.service.toUpperCase()} LIVE`;
-      const title = item.title;
-      const cleanStreamUrl = item.url.replace(/:8443/g, '').replace(/:3000/g, '');
+      const cleanTitle = item.title.replace(/["\n\r]/g, '');
+      const cleanGroup = (item.category || 'Live Events').replace(/["\n\r]/g, '');
+      const cleanLogo = (item.logo || '').replace(/["\n\r]/g, '');
 
-      lines.push('');
-      lines.push(`#EXTINF:-1 tvg-id="${item.id}" tvg-name="${title}" tvg-logo="${logo}" group-title="${cat}",${title}`);
-      lines.push(cleanStreamUrl);
+      lines.push(
+        `#EXTINF:-1 tvg-id="${item.id}" tvg-name="${cleanTitle}" tvg-logo="${cleanLogo}" group-title="${cleanGroup}",${cleanTitle}`
+      );
+      lines.push(item.url);
     }
 
     return lines.join('\n');
-  }
-
-  public getRawM3U(service: 'fancode' | 'sonyliv' | 'zee5'): string {
-    return this.m3uContent[service] || this.generateM3U(service);
   }
 }
 

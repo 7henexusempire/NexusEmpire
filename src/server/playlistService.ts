@@ -12,6 +12,8 @@ import {
   deduplicateChannelList,
   normalizeStreamUrl,
   DeduplicationResult,
+  aiFindFuzzyDuplicates,
+  DuplicateReportItem,
 } from './deduplicator';
 import { aiService } from './aiService';
 
@@ -35,6 +37,7 @@ export interface CustomizationData {
   nexusempireCategories?: string[];
   nexusempireChannelAssignments?: Record<string, string[]>;
   aninexusOverrides?: Record<string, { enabled?: boolean; customName?: string }>;
+  restoredChannelIds?: string[];
 }
 
 export interface GlobalSyncStatus {
@@ -315,6 +318,7 @@ class PlaylistService {
   private groupLogos: Record<string, string> = {};
   private groupVisibility: Record<string, boolean> = {};
   private customChannels: ChannelItem[] = [];
+  private restoredChannelIds = new Set<string>();
 
   private lastSyncTime: Date | null = null;
   private nextSyncTime: Date | null = null;
@@ -380,6 +384,9 @@ class PlaylistService {
         if (data.groupLogos) this.groupLogos = data.groupLogos;
         if (data.groupVisibility) this.groupVisibility = data.groupVisibility;
         if (data.customChannels) this.customChannels = data.customChannels;
+        if (Array.isArray(data.restoredChannelIds)) {
+          this.restoredChannelIds = new Set(data.restoredChannelIds);
+        }
         if (data.settings) {
           this.settings = { ...DEFAULT_SETTINGS, ...data.settings };
           if (!this.settings.userAgent || this.settings.userAgent.includes('Chrome/')) {
@@ -406,6 +413,7 @@ class PlaylistService {
         nexusempireItems: this.nexusempireItems,
         nexusempireCategories: this.nexusempireCategories,
         nexusempireChannelAssignments: this.nexusempireChannelAssignments,
+        restoredChannelIds: Array.from(this.restoredChannelIds),
       };
       fs.writeFileSync(CUSTOMIZATIONS_FILE, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
@@ -869,10 +877,12 @@ class PlaylistService {
     if (!applyDedup) {
       return {
         channels: rawMatched,
+        duplicates: [],
         stats: {
           totalRaw: rawMatched.length,
           exactDuplicatesRemoved: 0,
           distinctVariantsPreserved: 0,
+          restoredCount: 0,
           finalCleanChannels: rawMatched.length,
         },
       };
@@ -881,7 +891,67 @@ class PlaylistService {
     return deduplicateChannelList(rawMatched, {
       mode: this.settings.dedupMode || 'smart',
       disambiguateNames: true,
+      restoredChannelIds: this.restoredChannelIds,
     });
+  }
+
+  public getChannelsWithDedupStats(sourceId = 'all', applyDedup = true): DeduplicationResult {
+    const channels = this.getAllChannels(sourceId).filter((c) => c.enabled);
+    if (!applyDedup) {
+      return {
+        channels,
+        duplicates: [],
+        stats: {
+          totalRaw: channels.length,
+          exactDuplicatesRemoved: 0,
+          distinctVariantsPreserved: 0,
+          restoredCount: 0,
+          finalCleanChannels: channels.length,
+        },
+      };
+    }
+    return deduplicateChannelList(channels, {
+      mode: this.settings.dedupMode || 'smart',
+      disambiguateNames: true,
+      restoredChannelIds: this.restoredChannelIds,
+    });
+  }
+
+  public getDuplicateReport(sourceId = 'all') {
+    const dedupRes = this.getChannelsWithDedupStats(sourceId, true);
+    const rawChannels = this.getChannelsWithDedupStats(sourceId, false).channels;
+    const fuzzyCandidates = aiFindFuzzyDuplicates(rawChannels, 0.82);
+
+    return {
+      duplicates: dedupRes.duplicates || [],
+      stats: dedupRes.stats,
+      fuzzyCandidates,
+      restoredIds: Array.from(this.restoredChannelIds),
+    };
+  }
+
+  public restoreChannels(channelIds: string[]): number {
+    let count = 0;
+    for (const id of channelIds) {
+      if (!this.restoredChannelIds.has(id)) {
+        this.restoredChannelIds.add(id);
+        count++;
+      }
+    }
+    this.saveCustomizations();
+    return count;
+  }
+
+  public unrestoreChannels(channelIds: string[]): number {
+    let count = 0;
+    for (const id of channelIds) {
+      if (this.restoredChannelIds.has(id)) {
+        this.restoredChannelIds.delete(id);
+        count++;
+      }
+    }
+    this.saveCustomizations();
+    return count;
   }
 
   public getChannelsForAniNexusCategory(categoryId: string): ChannelItem[] {

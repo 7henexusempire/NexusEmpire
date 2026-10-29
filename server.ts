@@ -446,6 +446,61 @@ app.get('/api/status', (req: Request, res: Response) => {
   return res.json(status);
 });
 
+// ============================================================
+// 4B. DUPLICATE REMOVAL & RECOVERY CONTROLS
+// ============================================================
+app.get('/api/duplicates', (req: Request, res: Response) => {
+  try {
+    const sourceId = (req.query.sourceId as string) || 'all';
+    const report = playlistService.getDuplicateReport(sourceId);
+    return res.json(report);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/duplicates/restore', (req: Request, res: Response) => {
+  try {
+    const { channelIds } = req.body;
+    if (!Array.isArray(channelIds) || channelIds.length === 0) {
+      return res.status(400).json({ error: 'channelIds array is required' });
+    }
+    const count = playlistService.restoreChannels(channelIds);
+    return res.json({ success: true, restoredCount: count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/duplicates/unrestore', (req: Request, res: Response) => {
+  try {
+    const { channelIds } = req.body;
+    if (!Array.isArray(channelIds) || channelIds.length === 0) {
+      return res.status(400).json({ error: 'channelIds array is required' });
+    }
+    const count = playlistService.unrestoreChannels(channelIds);
+    return res.json({ success: true, unrestoredCount: count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/duplicates/ai-clean', async (req: Request, res: Response) => {
+  try {
+    const sourceId = req.body?.sourceId || 'all';
+    const report = playlistService.getDuplicateReport(sourceId);
+    return res.json({
+      success: true,
+      message: 'AI Fuzzy Duplicate Scan Complete',
+      fuzzyCount: report.fuzzyCandidates.length,
+      exactDuplicatesRemoved: report.stats.exactDuplicatesRemoved,
+      fuzzyCandidates: report.fuzzyCandidates,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/sync', async (req: Request, res: Response) => {
   try {
     const sourceId = (req.query.sourceId as string) || req.body?.sourceId;
