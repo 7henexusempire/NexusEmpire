@@ -1,363 +1,330 @@
-import React, { useState } from 'react';
-import { ChannelStream, RebuildCategory } from '../types/playlist';
-import {
-  Wrench,
-  Plus,
-  Trash2,
-  Edit2,
-  ArrowUp,
-  ArrowDown,
-  Download,
-  Copy,
-  Check,
-  Play,
-  Layers,
-  Sparkles,
-  Search,
-  ExternalLink,
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, useEffect, useMemo } from 'react';
+import { ChannelItem, RebuiltPlaylist } from '../types';
+import { 
+  Plus, 
+  Trash2, 
+  Layers, 
+  Search, 
+  Radio, 
+  Play, 
+  Shuffle, 
+  Save, 
+  PlusCircle,
+  GripVertical
 } from 'lucide-react';
 
-interface NexusRebuildTabProps {
-  categories: RebuildCategory[];
-  allChannels: ChannelStream[];
-  onAddCategory: (name: string) => void;
-  onUpdateCategory: (id: string, name: string) => void;
-  onDeleteCategory: (id: string) => void;
-  onRemoveStreamFromCategory: (categoryId: string, channelId: string) => void;
-  onAddStreamToCategory: (categoryId: string, channelId: string) => void;
-  onPlayStream: (stream: ChannelStream) => void;
-  onEditStream: (stream: ChannelStream) => void;
-}
+export default function NexusRebuildTab() {
+  const [channels, setChannels] = useState<ChannelItem[]>([]);
+  const [rebuiltPlaylists, setRebuiltPlaylists] = useState<RebuiltPlaylist[]>([]);
+  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
 
-export const NexusRebuildTab: React.FC<NexusRebuildTabProps> = ({
-  categories,
-  allChannels,
-  onAddCategory,
-  onUpdateCategory,
-  onDeleteCategory,
-  onRemoveStreamFromCategory,
-  onAddStreamToCategory,
-  onPlayStream,
-  onEditStream,
-}) => {
-  const [newCatName, setNewCatName] = useState('');
-  const [activeCategoryId, setActiveCategoryId] = useState<string>(categories[0]?.id || '');
-  const [channelSearch, setChannelSearch] = useState('');
-  const [copiedEndpoint, setCopiedEndpoint] = useState(false);
-  const [editingCatId, setEditingCatId] = useState<string | null>(null);
-  const [editingCatName, setEditingCatName] = useState('');
+  useEffect(() => {
+    fetch('/api/channels').then(res => res.json()).then(setChannels);
+    fetch('/api/rebuild').then(res => res.json()).then(setRebuiltPlaylists);
+  }, []);
 
-  const channelMap = new Map<string, ChannelStream>(allChannels.map((c) => [c.id, c]));
-  const activeCategory = categories.find((c) => c.id === activeCategoryId) || categories[0];
+  const activePlaylist = useMemo(() => 
+    rebuiltPlaylists.find(p => p.id === activePlaylistId), 
+    [rebuiltPlaylists, activePlaylistId]
+  );
 
-  const handleCreateCategory = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCatName.trim()) return;
-    onAddCategory(newCatName.trim());
-    setNewCatName('');
+  const filteredChannels = useMemo(() => 
+    channels.filter(ch => 
+      ch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ch.groupTitle.toLowerCase().includes(searchQuery.toLowerCase())
+    ), [channels, searchQuery]
+  );
+
+  const handleCreateNew = async () => {
+    const name = prompt('Enter playlist name:');
+    if (!name) return;
+    
+    const res = await fetch('/api/rebuild', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const newP = await res.json();
+    setRebuiltPlaylists([...rebuiltPlaylists, newP]);
+    setActivePlaylistId(newP.id);
   };
 
-  const handleStartEditCat = (cat: RebuildCategory) => {
-    setEditingCatId(cat.id);
-    setEditingCatName(cat.name);
+  const handleAddCategory = () => {
+    if (!activePlaylist || !newCategoryName.trim()) return;
+    const updated = { 
+      ...activePlaylist, 
+      customCategories: { 
+        ...activePlaylist.customCategories, 
+        [newCategoryName.trim()]: [] 
+      } 
+    };
+    savePlaylist(updated);
+    setNewCategoryName('');
   };
 
-  const handleSaveEditCat = (catId: string) => {
-    if (editingCatName.trim()) {
-      onUpdateCategory(catId, editingCatName.trim());
-    }
-    setEditingCatId(null);
+  const handleAddChannelToCategory = (catName: string, channelId: string) => {
+    if (!activePlaylist) return;
+    const current = activePlaylist.customCategories[catName] || [];
+    if (current.includes(channelId)) return;
+    
+    const updated = {
+      ...activePlaylist,
+      customCategories: {
+        ...activePlaylist.customCategories,
+        [catName]: [...current, channelId]
+      }
+    };
+    savePlaylist(updated);
   };
 
-  // Channels to add: streams not yet in the active category
-  const candidateChannels = allChannels.filter((c) => {
-    if (c.status === 'trashed') return false;
-    if (activeCategory && activeCategory.channelIds.includes(c.id)) return false;
-    if (!channelSearch.trim()) return true;
+  const handleRemoveChannelFromCategory = (catName: string, channelId: string) => {
+    if (!activePlaylist) return;
+    const updated = {
+      ...activePlaylist,
+      customCategories: {
+        ...activePlaylist.customCategories,
+        [catName]: activePlaylist.customCategories[catName].filter(id => id !== channelId)
+      }
+    };
+    savePlaylist(updated);
+  };
 
-    const q = channelSearch.toLowerCase();
-    return (
-      c.title.toLowerCase().includes(q) ||
-      (c.group && c.group.toLowerCase().includes(q)) ||
-      c.sourceName.toLowerCase().includes(q)
-    );
-  });
+  const handleRemoveCategory = (catName: string) => {
+    if (!activePlaylist) return;
+    const { [catName]: _, ...remaining } = activePlaylist.customCategories;
+    const updated = { ...activePlaylist, customCategories: remaining };
+    savePlaylist(updated);
+  };
 
-  const rebuildM3uUrl = `${window.location.origin}/api/playlist/rebuild.m3u`;
+  const savePlaylist = async (p: RebuiltPlaylist) => {
+    setRebuiltPlaylists(rebuiltPlaylists.map(x => x.id === p.id ? p : x));
+    await fetch(`/api/rebuild/${p.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(p)
+    });
+  };
+
+  const handleDeletePlaylist = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this playlist?')) return;
+    await fetch(`/api/rebuild/${id}`, { method: 'DELETE' });
+    setRebuiltPlaylists(rebuiltPlaylists.filter(p => p.id !== id));
+    if (activePlaylistId === id) setActivePlaylistId(null);
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner & Export Actions */}
-      <section className="crystal-panel rounded-xl p-5">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-purple-400" />
-              Nexus Rebuild Studio (Custom Playlist Builder)
-            </h2>
-            <p className="text-xs text-gray-300 mt-1">
-              Assemble your own ultimate VIP playlist by creating custom categories and curating streams from any connected source.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(rebuildM3uUrl);
-                setCopiedEndpoint(true);
-                setTimeout(() => setCopiedEndpoint(false), 2000);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-black/60 hover:bg-black/80 text-cyan-300 border border-cyan-500/30 transition-all"
+    <div className="grid grid-cols-12 gap-6">
+      {/* Sidebar: Playlist Selection */}
+      <div className="col-span-12 lg:col-span-3 space-y-4">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-bold text-sm flex items-center gap-2">
+              <Layers size={16} className="text-amber-400" />
+              Rebuilt Playlists
+            </h3>
+            <button 
+              onClick={handleCreateNew}
+              className="p-1 hover:bg-white/10 rounded-lg text-amber-400 transition-colors"
             >
-              {copiedEndpoint ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedEndpoint ? 'Copied URL!' : 'Copy Rebuild M3U URL'}</span>
+              <PlusCircle size={20} />
             </button>
-
-            <a
-              href="/api/playlist/rebuild.m3u"
-              download="nexus_rebuild.m3u"
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-500 to-amber-500 hover:from-purple-400 hover:to-amber-400 text-gray-950 transition-all shadow-md"
-            >
-              <Download className="w-3.5 h-3.5" /> Download Rebuilt M3U
-            </a>
           </div>
-        </div>
-      </section>
-
-      {/* Main Studio Workspace: Left (Categories & Curated Streams), Right (Stream Library Picker) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Category Manager & Stream Reorder */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Create Category Form */}
-          <div className="crystal-panel rounded-xl p-4">
-            <form onSubmit={handleCreateCategory} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                placeholder="New Category Name (e.g. 👑 Premium Sports HD)"
-                className="flex-1 px-3 py-2 text-xs rounded-lg crystal-input text-white placeholder-gray-400"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition-colors flex items-center gap-1.5 shadow-md"
+          
+          <div className="space-y-2">
+            {rebuiltPlaylists.map(p => (
+              <div 
+                key={p.id}
+                onClick={() => setActivePlaylistId(p.id)}
+                className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
+                  activePlaylistId === p.id ? 'bg-amber-500 text-black' : 'bg-white/5 text-white/70 hover:bg-white/10'
+                }`}
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Create Category</span>
-              </button>
-            </form>
-
-            {/* Category Selectors */}
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-              {categories.map((cat) => {
-                const isSelected = activeCategory?.id === cat.id;
-
-                if (editingCatId === cat.id) {
-                  return (
-                    <div key={cat.id} className="flex items-center gap-1 shrink-0">
-                      <input
-                        type="text"
-                        value={editingCatName}
-                        onChange={(e) => setEditingCatName(e.target.value)}
-                        className="px-2 py-1 text-xs rounded bg-black text-white border border-cyan-400"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleSaveEditCat(cat.id)}
-                        className="p-1 rounded bg-emerald-600 text-white text-xs"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={cat.id}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer shrink-0 transition-all ${
-                      isSelected
-                        ? 'bg-purple-600/30 text-purple-200 border border-purple-400/50 shadow-sm'
-                        : 'bg-black/40 text-gray-300 hover:bg-black/60 border border-white/5'
-                    }`}
-                    onClick={() => setActiveCategoryId(cat.id)}
-                  >
-                    <span>{cat.name}</span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/60 text-gray-300 font-mono">
-                      {cat.channelIds.length}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEditCat(cat);
-                      }}
-                      className="p-0.5 rounded hover:text-white text-gray-400"
-                      title="Rename"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteCategory(cat.id);
-                      }}
-                      className="p-0.5 rounded hover:text-rose-400 text-gray-400"
-                      title="Delete Category"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Active Category Streams */}
-          <div className="crystal-panel rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between text-xs text-gray-300">
-              <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                <Layers className="w-4 h-4 text-purple-400" />
-                Streams in "{activeCategory?.name || 'Category'}" ({activeCategory?.channelIds.length || 0})
-              </h3>
-            </div>
-
-            <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-              {!activeCategory || activeCategory.channelIds.length === 0 ? (
-                <div className="text-center py-10 crystal-panel-subtle rounded-lg">
-                  <p className="text-gray-300 text-xs font-semibold">No streams in this category yet</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Pick channels from the library on the right to add them to this category.
-                  </p>
-                </div>
-              ) : (
-                activeCategory.channelIds.map((chId, idx) => {
-                  const channel = channelMap.get(chId);
-                  if (!channel) return null;
-
-                  return (
-                    <div
-                      key={chId}
-                      className="crystal-panel-subtle hover:bg-white/10 p-2.5 rounded-lg flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <span className="text-[10px] font-mono text-gray-400 w-5 text-center shrink-0">
-                          #{idx + 1}
-                        </span>
-                        <div className="w-8 h-8 rounded bg-black/60 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
-                          {channel.logo ? (
-                            <img
-                              src={channel.logo}
-                              alt=""
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <span className="text-[10px] font-bold text-gray-400">
-                              {channel.title.slice(0, 2)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-white truncate text-xs" title={channel.title}>
-                            {channel.title}
-                          </h4>
-                          <p className="text-[10px] text-gray-400 font-mono truncate">
-                            {channel.sourceName} • {channel.url}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => onPlayStream(channel)}
-                          className="p-1 rounded bg-black/40 hover:bg-emerald-950/60 text-emerald-400"
-                          title="Play"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                        </button>
-                        <button
-                          onClick={() => onEditStream(channel)}
-                          className="p-1 rounded bg-black/40 hover:bg-black/70 text-gray-300"
-                          title="Edit Attributes"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => onRemoveStreamFromCategory(activeCategory.id, chId)}
-                          className="p-1 rounded bg-black/40 hover:bg-rose-950/60 text-rose-400"
-                          title="Remove from Category"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Stream Library Picker */}
-        <div className="lg:col-span-5 crystal-panel rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                Add Streams to "{activeCategory?.name || 'Category'}"
-              </h3>
-              <p className="text-[11px] text-gray-300">
-                Click "+ Add" to include any stream into this rebuild category.
-              </p>
-            </div>
-          </div>
-
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={channelSearch}
-              onChange={(e) => setChannelSearch(e.target.value)}
-              placeholder="Search stream library..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg crystal-input text-white placeholder-gray-400"
-            />
-          </div>
-
-          <div className="space-y-1.5 max-h-[520px] overflow-y-auto pr-1">
-            {candidateChannels.slice(0, 100).map((ch) => (
-              <div
-                key={ch.id}
-                className="p-2 rounded-lg crystal-panel-subtle hover:bg-white/10 flex items-center justify-between gap-2 text-xs transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-semibold text-white truncate text-xs" title={ch.title}>
-                    {ch.title}
-                  </h4>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-mono mt-0.5">
-                    <span className="text-amber-300">{ch.group || 'General'}</span>
-                    <span>•</span>
-                    <span className="text-cyan-400 truncate">{ch.sourceName}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    if (activeCategory) {
-                      onAddStreamToCategory(activeCategory.id, ch.id);
-                    }
-                  }}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/30 hover:bg-purple-500 text-purple-200 hover:text-white transition-colors shrink-0 flex items-center gap-1"
+                <span className="text-sm font-medium truncate">{p.name}</span>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleDeletePlaylist(p.id); }}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-black/10 rounded transition-opacity"
                 >
-                  <Plus className="w-3 h-3" />
-                  <span>Add</span>
+                  <Trash2 size={14} />
                 </button>
               </div>
             ))}
+            {rebuiltPlaylists.length === 0 && (
+              <div className="text-center py-4 text-xs text-white/40">
+                No custom playlists yet.
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Main Content */}
+      <div className="col-span-12 lg:col-span-9">
+        {activePlaylist ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Pool of Channels */}
+            <div className="bg-black/30 border border-white/10 rounded-2xl flex flex-col h-[700px]">
+              <div className="p-4 border-b border-white/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-white font-bold text-sm">Available Channels</h3>
+                  <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full text-white/60">
+                    {filteredChannels.length} found
+                  </span>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={14} />
+                  <input 
+                    type="text"
+                    placeholder="Search name or group..."
+                    className="w-full bg-black/40 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none focus:border-amber-500/50"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
+                {filteredChannels.slice(0, 200).map(ch => (
+                  <div 
+                    key={ch.id}
+                    className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-transparent hover:border-white/10 transition-all group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                        {ch.tvgLogo ? (
+                          <img src={ch.tvgLogo} alt="" className="w-full h-full object-contain" />
+                        ) : (
+                          <Radio className="w-4 h-4 text-white/30" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-white truncate">{ch.name}</div>
+                        <div className="text-[10px] text-white/40 truncate">{ch.groupTitle}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {Object.keys(activePlaylist.customCategories).map(catName => (
+                        <button
+                          key={catName}
+                          onClick={() => handleAddChannelToCategory(catName, ch.id)}
+                          className="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-500 hover:text-black rounded-lg transition-all"
+                          title={`Add to ${catName}`}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Curated Categories */}
+            <div className="bg-black/30 border border-white/10 rounded-2xl flex flex-col h-[700px]">
+              <div className="p-4 border-b border-white/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                    <Layers size={16} className="text-amber-400" />
+                    Custom Bouquet
+                  </h3>
+                  <a 
+                    href={`/${activePlaylist.slug}.m3u`}
+                    target="_blank"
+                    className="text-[10px] text-amber-400 hover:underline"
+                  >
+                    View M3U
+                  </a>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    placeholder="Category name..."
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500/50"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
+                  />
+                  <button 
+                    onClick={handleAddCategory}
+                    className="px-3 py-2 bg-amber-500 text-black font-bold rounded-xl text-xs hover:bg-amber-400"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+                {Object.entries(activePlaylist.customCategories).map(([catName, chIds]) => (
+                  <div key={catName} className="space-y-2">
+                    <div className="flex items-center justify-between group">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">{catName}</h4>
+                        <span className="text-[10px] text-white/40">{chIds.length} channels</span>
+                      </div>
+                      <button 
+                        onClick={() => handleRemoveCategory(catName)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-white/40 hover:text-rose-400 transition-all"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      {chIds.map(chId => {
+                        const ch = channels.find(x => x.id === chId);
+                        return (
+                          <div 
+                            key={chId}
+                            className="flex items-center justify-between p-2 rounded-xl bg-white/[0.03] border border-white/5"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <GripVertical size={12} className="text-white/20" />
+                              <span className="text-[11px] text-white/80 truncate">{ch?.name || 'Unknown Channel'}</span>
+                            </div>
+                            <button 
+                              onClick={() => handleRemoveChannelFromCategory(catName, chId)}
+                              className="text-white/20 hover:text-rose-400 transition-colors"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                      {chIds.length === 0 && (
+                        <div className="text-[10px] text-white/20 italic p-4 text-center border border-dashed border-white/5 rounded-xl">
+                          Empty category. Add channels from the left.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="h-[700px] flex flex-col items-center justify-center bg-black/30 border border-white/10 rounded-2xl text-center p-12">
+            <Layers size={48} className="text-white/10 mb-4" />
+            <h3 className="text-white font-bold text-lg">No Playlist Selected</h3>
+            <p className="text-white/40 text-sm max-w-sm mt-2">
+              Select a custom playlist from the sidebar or create a new one to start rebuilding your perfect bouquet.
+            </p>
+            <button 
+              onClick={handleCreateNew}
+              className="mt-6 px-6 py-3 bg-amber-500 text-black font-bold rounded-2xl hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/20"
+            >
+              Create New Playlist
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
-};
+}

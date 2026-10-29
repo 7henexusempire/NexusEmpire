@@ -1,376 +1,90 @@
-import React, { useState } from 'react';
-import { ChannelStream, RebuildCategory } from '../types/playlist';
-import {
-  Radio,
-  ExternalLink,
-  Copy,
-  Check,
-  Plus,
-  Tv,
-  Sparkles,
-  Play,
-  Edit2,
-  Trash2,
-  Download,
-  Share2,
-  Key,
-} from 'lucide-react';
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-interface NexusEmpireTabProps {
-  channels: ChannelStream[];
-  rebuildCategories: RebuildCategory[];
-  onPlayStream: (stream: ChannelStream) => void;
-  onEditStream: (stream: ChannelStream) => void;
-  onDeleteStream: (streamId: string) => void;
-  onAddToRebuild: (categoryId: string, channelId: string) => void;
-  onAddCustomStream: (data: Partial<ChannelStream>) => void;
-}
+import { useState, useEffect } from 'react';
+import { NexusEmpireItem } from '../types';
+import { ExternalLink, Copy, Check, PlayCircle } from 'lucide-react';
 
-export const NexusEmpireTab: React.FC<NexusEmpireTabProps> = ({
-  channels,
-  rebuildCategories,
-  onPlayStream,
-  onEditStream,
-  onDeleteStream,
-  onAddToRebuild,
-  onAddCustomStream,
-}) => {
+export default function NexusEmpireTab() {
+  const [items, setItems] = useState<NexusEmpireItem[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [newStreamboxInput, setNewStreamboxInput] = useState('');
-  const [newTitle, setNewTitle] = useState('');
-  const [newGroup, setNewGroup] = useState('Nexus VIP');
-  const [resolveStatus, setResolveStatus] = useState<Record<string, string>>({});
-  const [copiedEndpoint, setCopiedEndpoint] = useState(false);
 
-  // Filter streams that are Streambox or belong to Nexus Empire
-  const streamboxStreams = channels.filter(
-    (c) =>
-      c.status !== 'trashed' &&
-      (c.url.startsWith('streambox://') ||
-        c.sourceId === 'src-streambox' ||
-        c.group?.toLowerCase().includes('nexus'))
-  );
+  useEffect(() => {
+    fetch('/api/nexusempire')
+      .then(res => res.json())
+      .then(setItems);
+  }, []);
 
-  const handleCopy = (text: string, id: string) => {
+  const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleLaunchInAniTV = (streamUrl: string) => {
-    // Streambox protocol triggers AniTV or Streambox desktop / Android app
-    try {
-      window.location.href = streamUrl;
-    } catch {
-      // fallback
-    }
+  const launchStreambox = (uri: string) => {
+    window.location.href = uri;
   };
-
-  const handleTestResolve = async (stream: ChannelStream) => {
-    setResolveStatus((prev) => ({ ...prev, [stream.id]: 'Resolving...' }));
-    // Simulate token verification and protocol integrity check
-    await new Promise((r) => setTimeout(r, 600));
-
-    const hashMatch = stream.url.match(/streambox:\/\/open\/([a-f0-9]+)/i);
-    if (hashMatch && hashMatch[1].length === 32) {
-      setResolveStatus((prev) => ({
-        ...prev,
-        [stream.id]: `Verified Valid Token: ${hashMatch[1].substring(0, 8)}... (Ready for AniTV)`,
-      }));
-    } else {
-      setResolveStatus((prev) => ({
-        ...prev,
-        [stream.id]: 'Custom Protocol Token Active',
-      }));
-    }
-  };
-
-  const handleAddStreambox = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStreamboxInput.trim()) return;
-
-    let finalUrl = newStreamboxInput.trim();
-    if (!finalUrl.startsWith('streambox://')) {
-      finalUrl = `streambox://open/${finalUrl.replace(/^open\//, '')}`;
-    }
-
-    onAddCustomStream({
-      title: newTitle.trim() || `Nexus Streambox Stream ${streamboxStreams.length + 1}`,
-      url: finalUrl,
-      group: newGroup.trim() || 'Nexus VIP',
-      logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
-      tvgName: newTitle.trim() || `Nexus Streambox ${streamboxStreams.length + 1}`,
-      sourceId: 'src-streambox',
-      sourceName: 'Nexus Empire Streambox Vault',
-    });
-
-    setNewStreamboxInput('');
-    setNewTitle('');
-  };
-
-  const m3uEndpoint = `${window.location.origin}/api/playlist/nexus-empire.m3u`;
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <section className="crystal-panel rounded-xl p-5 relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            <div className="flex items-center gap-2">
-              <span className="p-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300">
-                <Radio className="w-5 h-5 animate-pulse" />
-              </span>
-              <div>
-                <h2 className="text-lg font-extrabold text-white">
-                  Nexus Empire Vault (Streambox & AniTV Protocol)
-                </h2>
-                <p className="text-xs text-amber-300/90 font-mono">
-                  Native streambox://open/ URI integration with AniTV & TiviMate external players
-                </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((item) => (
+          <div 
+            key={item.id}
+            className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all group"
+          >
+            <div className="relative h-40 overflow-hidden">
+              <img 
+                src={item.logo} 
+                alt={item.name} 
+                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <h3 className="text-xl font-bold text-white">{item.name}</h3>
+                <p className="text-xs text-white/60">{item.category}</p>
               </div>
             </div>
-            <p className="text-xs text-gray-300 leading-relaxed pt-1">
-              Streambox URLs use customized encrypted payload hashes designed for AniTV and Streambox players.
-              Nexus Empire compiles these into unified IPTV-compatible playlists with direct app deep-linking.
-            </p>
-          </div>
-
-          {/* Quick Endpoint Actions */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(m3uEndpoint);
-                setCopiedEndpoint(true);
-                setTimeout(() => setCopiedEndpoint(false), 2000);
-              }}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-black/60 hover:bg-black/90 text-cyan-300 border border-cyan-500/40 transition-all"
-            >
-              {copiedEndpoint ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-              <span>{copiedEndpoint ? 'Copied M3U URL!' : 'Copy AniTV M3U URL'}</span>
-            </button>
-
-            <a
-              href="/api/playlist/nexus-empire.m3u"
-              download="nexus_empire_vault.m3u"
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 transition-all shadow-md"
-            >
-              <Download className="w-4 h-4" /> Download .M3U
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Add New Streambox Stream Form */}
-      <section className="crystal-panel rounded-xl p-5">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
-          <Plus className="w-4 h-4 text-cyan-400" />
-          Add Streambox Hash or Protocol URL
-        </h3>
-        <form onSubmit={handleAddStreambox} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2">
-            <label className="block text-[11px] font-medium text-gray-300 mb-1">
-              Streambox URL or 32-Char Hex Hash
-            </label>
-            <input
-              type="text"
-              required
-              value={newStreamboxInput}
-              onChange={(e) => setNewStreamboxInput(e.target.value)}
-              placeholder="e.g. streambox://open/255cfab9f98da87dab11a6e0a337279e"
-              className="w-full px-3 py-2 text-xs rounded-lg crystal-input text-white font-mono placeholder-gray-500"
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium text-gray-300 mb-1">
-              Stream Name
-            </label>
-            <input
-              type="text"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="e.g. Nexus Cinema HD"
-              className="w-full px-3 py-2 text-xs rounded-lg crystal-input text-white placeholder-gray-500"
-            />
-          </div>
-          <div className="flex items-end">
-            <button
-              type="submit"
-              className="w-full py-2 px-4 rounded-lg text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-gray-950 transition-all shadow-md flex items-center justify-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add to Vault</span>
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {/* Streambox Streams Grid */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between text-xs text-gray-300 px-1">
-          <h3 className="font-bold text-sm text-white flex items-center gap-2">
-            <Radio className="w-4 h-4 text-amber-400" />
-            Active Streambox Feeds ({streamboxStreams.length})
-          </h3>
-          <span className="text-gray-400 text-xs">
-            Directly functional in AniTV & IPTV players supporting Streambox schemes
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {streamboxStreams.map((stream) => {
-            const isCopied = copiedId === stream.id;
-            const isM3uCopied = copiedId === `m3u-${stream.id}`;
-            const hashMatch = stream.url.match(/streambox:\/\/open\/([a-f0-9]+)/i);
-            const statusMsg = resolveStatus[stream.id];
-
-            // Map IDs to the short URLs we created in server.ts
-            let dedicatedM3uUrl = '';
-            if (stream.id === 'sb-all-include') dedicatedM3uUrl = `${window.location.origin}/allinclude.m3u`;
-            else if (stream.id === 'sb-all-tv') dedicatedM3uUrl = `${window.location.origin}/alltv.m3u`;
-            else if (stream.id === 'sb-sony') dedicatedM3uUrl = `${window.location.origin}/sonynetwork.m3u`;
-            else if (stream.id === 'sb-all-match') dedicatedM3uUrl = `${window.location.origin}/matchevents.m3u`;
-            else if (stream.id === 'sb-willow') dedicatedM3uUrl = `${window.location.origin}/willow.m3u`;
-            else if (stream.id === 'sb-adult') dedicatedM3uUrl = `${window.location.origin}/adult.m3u`;
-            else {
-              // Generic fallback for custom streambox items
-              const groupSlug = (stream.group || 'Nexus').toLowerCase().replace(/[^a-z0-9]/g, '-');
-              dedicatedM3uUrl = `${window.location.origin}/playlist/group/${encodeURIComponent(stream.group || 'Nexus')}.m3u`;
-            }
-
-            return (
-              <div
-                key={stream.id}
-                className="crystal-panel-subtle hover:bg-white/10 p-4 rounded-xl border border-white/10 transition-all flex flex-col justify-between gap-3"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-lg bg-black/70 border border-amber-500/30 flex items-center justify-center p-1.5 shrink-0">
-                        <img
-                          src={stream.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547'}
-                          alt={stream.title}
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLElement).src = 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-extrabold text-white uppercase tracking-tight">{stream.title}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
-                            {stream.group || 'Nexus VIP'}
-                          </span>
-                          <span className="text-[9px] font-bold text-cyan-400 uppercase">
-                            AniTV Ready
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Launch / Play in AniTV */}
-                    <button
-                      onClick={() => handleLaunchInAniTV(stream.url)}
-                      title="Launch protocol in AniTV / Streambox"
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500/20 to-cyan-500/20 hover:from-amber-500/40 hover:to-cyan-500/40 border border-amber-500/40 text-amber-200 transition-all flex items-center gap-1.5 shadow-sm shadow-black"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>Launch AniTV</span>
-                    </button>
-                  </div>
-
-                  {/* Stream Description / Notes */}
-                  {stream.notes && (
-                    <p className="mt-3 text-[11px] text-gray-300 leading-relaxed italic border-l-2 border-amber-500/40 pl-2">
-                      {stream.notes}
-                    </p>
-                  )}
-
-                  {/* Hash / Protocol URL Pill */}
-                  <div className="mt-4 space-y-2">
-                    <div className="p-2 rounded-lg bg-black/70 border border-white/5 flex items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Key className="w-3.5 h-3.5 text-amber-400/70 shrink-0" />
-                        <span className="font-mono text-[10px] text-gray-400 truncate">
-                          {stream.url}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => handleCopy(stream.url, stream.id)}
-                        className="text-gray-400 hover:text-white shrink-0 p-1 rounded hover:bg-white/10"
-                        title="Copy Protocol URL"
-                      >
-                        {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-
-                    {/* Dedicated M3U Endpoint Pill */}
-                    <div className="p-2 rounded-lg bg-cyan-950/30 border border-cyan-500/20 flex items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Share2 className="w-3.5 h-3.5 text-cyan-400/70 shrink-0" />
-                        <span className="font-mono text-[10px] text-cyan-200 truncate">
-                          {dedicatedM3uUrl}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => handleCopy(dedicatedM3uUrl, `m3u-${stream.id}`)}
-                        className="text-cyan-400 hover:text-white shrink-0 p-1 rounded hover:bg-white/10"
-                        title="Copy Dedicated M3U URL"
-                      >
-                        {isM3uCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Verification Status Feedback */}
-                  {statusMsg && (
-                    <div className="mt-2 text-[10px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 px-2 py-1 rounded flex items-center gap-1.5">
-                      <Sparkles className="w-3 h-3" />
-                      <span>{statusMsg}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bottom Row Actions */}
-                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+            
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-white/70 line-clamp-2 h-10">
+                {item.description}
+              </p>
+              
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => launchStreambox(item.uri)}
+                  className="flex items-center justify-center gap-2 w-full py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl transition-colors"
+                >
+                  <PlayCircle size={18} />
+                  Launch Streambox
+                </button>
+                
+                <div className="flex gap-2">
                   <button
-                    onClick={() => handleTestResolve(stream)}
-                    className="text-cyan-400 hover:text-cyan-300 font-bold text-[10px] flex items-center gap-1.5 hover:underline uppercase tracking-wider"
+                    onClick={() => copyToClipboard(`${window.location.origin}/${item.slug}.m3u`, item.id)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors text-sm"
                   >
-                    <RefreshCw className="w-3 h-3" /> Verify Protocol
+                    {copiedId === item.id ? <Check size={16} /> : <Copy size={16} />}
+                    {copiedId === item.id ? 'Copied' : 'Copy M3U'}
                   </button>
-
-                  <div className="flex items-center gap-1.5">
-                    {rebuildCategories.length > 0 && (
-                      <button
-                        onClick={() => onAddToRebuild(rebuildCategories[0].id, stream.id)}
-                        className="px-2 py-1 rounded text-[10px] bg-purple-500/20 hover:bg-purple-500/40 text-purple-200 border border-purple-500/30 transition-colors font-bold uppercase"
-                        title="Add to Rebuild Category"
-                      >
-                        + Rebuild
-                      </button>
-                    )}
-                    <button
-                      onClick={() => onEditStream(stream)}
-                      className="p-1.5 rounded bg-black/40 hover:bg-black/80 text-gray-400 hover:text-white border border-white/10 transition-colors"
-                      title="Edit Stream"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onDeleteStream(stream.id)}
-                      className="p-1.5 rounded bg-black/40 hover:bg-rose-950/60 text-gray-400 hover:text-rose-400 border border-white/10 transition-colors"
-                      title="Delete Stream"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  
+                  <a
+                    href={`/${item.slug}.m3u`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+                  >
+                    <ExternalLink size={18} />
+                  </a>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </section>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
-};
+}

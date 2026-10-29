@@ -3,690 +3,207 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
-import {
-  ChannelStream,
-  PlaylistSource,
-  RebuildCategory,
-  AppSettings,
-  CloudStreamItem,
-  SkyStreamItem,
-  StremioAddon,
-} from './types/playlist';
-import { VideoBackground } from './components/VideoBackground';
-import { Navbar, TabKey } from './components/Navbar';
-import { GlobalPlaylistsTab } from './components/GlobalPlaylistsTab';
-import { NexusEmpireTab } from './components/NexusEmpireTab';
-import { LiveEventsTab } from './components/LiveEventsTab';
-import { NexusRebuildTab } from './components/NexusRebuildTab';
-import { GroupManagerTab } from './components/GroupManagerTab';
-import { CloudStreamTab } from './components/CloudStreamTab';
-import { SkyStreamTab } from './components/SkyStreamTab';
-import { AiDeduplicationTab } from './components/AiDeduplicationTab';
-import { M3uGeneratorTab } from './components/M3uGeneratorTab';
-import { StreamPlayerModal } from './components/StreamPlayerModal';
-import { EditStreamModal } from './components/EditStreamModal';
-import { EditSourceModal } from './components/EditSourceModal';
-import { AddSourceModal } from './components/AddSourceModal';
-import { AddStreamModal } from './components/AddStreamModal';
-import { SettingsModal } from './components/SettingsModal';
+import { useState } from 'react';
+import { 
+  Shield, 
+  Layers, 
+  Globe, 
+  Settings, 
+  Activity, 
+  Database,
+  Crown,
+  PlayCircle
+} from 'lucide-react';
+import VideoBackground from './components/VideoBackground';
+import NexusEmpireTab from './components/NexusEmpireTab';
+import NexusRebuildTab from './components/NexusRebuildTab';
+import GlobalPlaylistsTab from './components/GlobalPlaylistsTab';
+import SportsHubTab from './components/SportsHubTab';
+
+type Tab = 'empire' | 'rebuild' | 'global' | 'sports' | 'status';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>('global');
-
-  // Application Data States
-  const [sources, setSources] = useState<PlaylistSource[]>([]);
-  const [channels, setChannels] = useState<ChannelStream[]>([]);
-  const [groups, setGroups] = useState<{ name: string; count: number; logo?: string }[]>([]);
-  const [rebuildCategories, setRebuildCategories] = useState<RebuildCategory[]>([]);
-  const [cloudstreamItems, setCloudstreamItems] = useState<CloudStreamItem[]>([]);
-  const [skystreamItems, setSkystreamItems] = useState<SkyStreamItem[]>([]);
-  const [stremioAddons, setStremioAddons] = useState<StremioAddon[]>([]);
-
-  // Settings State with thenexusempire.com and port 8443 stripping
-  const [settings, setSettings] = useState<AppSettings>({
-    domain: 'thenexusempire.com',
-    port: 8443,
-    hidePort: true,
-    publicBaseUrl: 'https://thenexusempire.com',
-    customTvgUrl: 'https://thenexusempire.com/epg.xml',
-    syncIntervalMinutes: 15,
-    autoSync: true,
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 TiviMate/4.7.0',
-  });
-
-  const [nextScheduledFetch, setNextScheduledFetch] = useState<number>(Date.now() + 15 * 60 * 1000);
-  const [isFetching, setIsFetching] = useState<boolean>(false);
-
-  // Modal States
-  const [activePlayerStream, setActivePlayerStream] = useState<ChannelStream | null>(null);
-  const [editingStream, setEditingStream] = useState<ChannelStream | null>(null);
-  const [editingSource, setEditingSource] = useState<PlaylistSource | null>(null);
-  const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
-  const [isAddStreamOpen, setIsAddStreamOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Compute public base URL
-  const publicBaseUrl = settings.publicBaseUrl && settings.publicBaseUrl.trim()
-    ? settings.publicBaseUrl.trim().replace(/\/+$/, '')
-    : `https://${settings.domain}`;
-
-  // Load status and settings
-  const fetchStatusAndSettings = useCallback(async () => {
-    try {
-      const [statusRes, settingsRes] = await Promise.all([
-        fetch('/api/status'),
-        fetch('/api/settings'),
-      ]);
-
-      if (statusRes.ok) {
-        const data = await statusRes.json();
-        setNextScheduledFetch(data.nextScheduledFetch || Date.now() + 15 * 60 * 1000);
-        setIsFetching(data.isFetching || false);
-      }
-
-      if (settingsRes.ok) {
-        const setts = await settingsRes.json();
-        setSettings((prev) => ({ ...prev, ...setts }));
-      }
-    } catch {
-      // offline / starting
-    }
-  }, []);
-
-  // Load sources
-  const fetchSources = useCallback(async () => {
-    try {
-      const res = await fetch('/api/playlists');
-      if (res.ok) {
-        const data = await res.json();
-        setSources(data);
-      }
-    } catch (err) {
-      console.error('Failed to load sources:', err);
-    }
-  }, []);
-
-  // Load streams
-  const fetchStreams = useCallback(async () => {
-    try {
-      const res = await fetch('/api/streams?limit=5000');
-      if (res.ok) {
-        const data = await res.json();
-        setChannels(data.channels || []);
-      }
-    } catch (err) {
-      console.error('Failed to load streams:', err);
-    }
-  }, []);
-
-  // Load groups / categories
-  const fetchGroups = useCallback(async () => {
-    try {
-      const res = await fetch('/api/groups');
-      if (res.ok) {
-        const data = await res.json();
-        setGroups(data);
-      }
-    } catch (err) {
-      console.error('Failed to load groups:', err);
-    }
-  }, []);
-
-  // Load rebuild categories
-  const fetchRebuildCategories = useCallback(async () => {
-    try {
-      const res = await fetch('/api/rebuild/categories');
-      if (res.ok) {
-        const data = await res.json();
-        setRebuildCategories(data);
-      }
-    } catch (err) {
-      console.error('Failed to load rebuild categories:', err);
-    }
-  }, []);
-
-  // Load CloudStream, SkyStream & Stremio Catalogs
-  const fetchCatalogs = useCallback(async () => {
-    try {
-      const [csRes, skyRes, stremioRes] = await Promise.all([
-        fetch('/api/cloudstream/items'),
-        fetch('/api/skystream/extensions'),
-        fetch('/api/stremio/addons'),
-      ]);
-
-      if (csRes.ok) setCloudstreamItems(await csRes.json());
-      if (skyRes.ok) setSkystreamItems(await skyRes.json());
-      if (stremioRes.ok) setStremioAddons(await stremioRes.json());
-    } catch (err) {
-      console.warn('Catalog fetch:', err);
-    }
-  }, []);
-
-  // Master refresh function
-  const refreshAll = useCallback(async () => {
-    await Promise.all([
-      fetchStatusAndSettings(),
-      fetchSources(),
-      fetchStreams(),
-      fetchGroups(),
-      fetchRebuildCategories(),
-      fetchCatalogs(),
-    ]);
-  }, [
-    fetchStatusAndSettings,
-    fetchSources,
-    fetchStreams,
-    fetchGroups,
-    fetchRebuildCategories,
-    fetchCatalogs,
-  ]);
-
-  useEffect(() => {
-    refreshAll();
-    const interval = setInterval(fetchStatusAndSettings, 5000);
-    return () => clearInterval(interval);
-  }, [refreshAll, fetchStatusAndSettings]);
-
-  // Action: Fetch All Sources
-  const handleFetchAll = async () => {
-    setIsFetching(true);
-    try {
-      await fetch('/api/playlists/fetch-all', { method: 'POST' });
-      await refreshAll();
-    } catch (err) {
-      console.error('Error fetching all:', err);
-    } finally {
-      setIsFetching(false);
-    }
-  };
-
-  // Action: Fetch Single Source
-  const handleFetchSource = async (sourceId: string) => {
-    try {
-      await fetch(`/api/playlists/${sourceId}/fetch`, { method: 'POST' });
-      await refreshAll();
-    } catch (err) {
-      console.error(`Error fetching source ${sourceId}:`, err);
-    }
-  };
-
-  // Action: Toggle AutoRefresh on source
-  const handleToggleAutoRefresh = async (source: PlaylistSource) => {
-    try {
-      await fetch(`/api/playlists/${source.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ autoRefresh: !source.autoRefresh }),
-      });
-      await fetchSources();
-    } catch (err) {
-      console.error('Error updating source:', err);
-    }
-  };
-
-  // Action: Delete Source
-  const handleDeleteSource = async (sourceId: string) => {
-    if (!window.confirm('Are you sure you want to remove this source?')) return;
-    try {
-      await fetch(`/api/playlists/${sourceId}`, { method: 'DELETE' });
-      await refreshAll();
-    } catch (err) {
-      console.error('Error deleting source:', err);
-    }
-  };
-
-  // Action: Add Source
-  const handleAddSource = async (sourceData: any) => {
-    try {
-      await fetch('/api/playlists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sourceData),
-      });
-      await refreshAll();
-    } catch (err) {
-      console.error('Error adding source:', err);
-    }
-  };
-
-  // Action: Edit / Save Source (rename playlist & slug)
-  const handleSaveSource = async (id: string, updated: Partial<PlaylistSource>) => {
-    try {
-      await fetch(`/api/playlists/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
-      });
-      await fetchSources();
-    } catch (err) {
-      console.error('Error updating source:', err);
-    }
-  };
-
-  // Action: Add Custom Stream
-  const handleAddCustomStream = async (streamData: Partial<ChannelStream>) => {
-    try {
-      await fetch('/api/streams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(streamData),
-      });
-      await refreshAll();
-    } catch (err) {
-      console.error('Error adding stream:', err);
-    }
-  };
-
-  // Action: Update Stream Attributes
-  const handleUpdateStream = async (updated: Partial<ChannelStream>) => {
-    if (!updated.id) return;
-    try {
-      await fetch(`/api/streams/${updated.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
-      });
-      await refreshAll();
-    } catch (err) {
-      console.error('Error saving stream:', err);
-    }
-  };
-
-  // Action: Move stream to trash
-  const handleDeleteStream = async (streamId: string) => {
-    try {
-      await fetch(`/api/streams/${streamId}`, { method: 'DELETE' });
-      setChannels((prev) =>
-        prev.map((c) => (c.id === streamId ? { ...c, status: 'trashed' } : c))
-      );
-    } catch (err) {
-      console.error('Error deleting stream:', err);
-    }
-  };
-
-  // Action: Restore stream from trash
-  const handleRestoreFromTrash = async (streamId: string) => {
-    try {
-      await fetch(`/api/streams/${streamId}/restore`, { method: 'POST' });
-      setChannels((prev) =>
-        prev.map((c) => (c.id === streamId ? { ...c, status: 'active' } : c))
-      );
-    } catch (err) {
-      console.error('Error restoring stream:', err);
-    }
-  };
-
-  // Action: Empty trash
-  const handleEmptyTrash = async () => {
-    if (!window.confirm('Permanently purge all quarantined channels from trash?')) return;
-    try {
-      await fetch('/api/trash/empty', { method: 'POST' });
-      setChannels((prev) => prev.filter((c) => c.status !== 'trashed'));
-    } catch (err) {
-      console.error('Error emptying trash:', err);
-    }
-  };
-
-  // Action: Bulk quarantine duplicates
-  const handleBulkQuarantine = async (duplicateIds: string[]) => {
-    try {
-      await fetch('/api/ai/quarantine-duplicates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ duplicateIds }),
-      });
-      setChannels((prev) =>
-        prev.map((c) => (duplicateIds.includes(c.id) ? { ...c, status: 'trashed' } : c))
-      );
-    } catch (err) {
-      console.error('Error bulk quarantining:', err);
-    }
-  };
-
-  // Rebuild category operations
-  const handleAddCategory = async (name: string) => {
-    try {
-      const res = await fetch('/api/rebuild/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      if (res.ok) {
-        const newCat = await res.json();
-        setRebuildCategories((prev) => [...prev, newCat]);
-      }
-    } catch (err) {
-      console.error('Error creating category:', err);
-    }
-  };
-
-  const handleUpdateCategory = async (id: string, name: string) => {
-    try {
-      await fetch(`/api/rebuild/categories/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      setRebuildCategories((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, name } : c))
-      );
-    } catch (err) {
-      console.error('Error updating category:', err);
-    }
-  };
-
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      await fetch(`/api/rebuild/categories/${id}`, { method: 'DELETE' });
-      setRebuildCategories((prev) => prev.filter((c) => c.id !== id));
-    } catch (err) {
-      console.error('Error deleting category:', err);
-    }
-  };
-
-  const handleAddStreamToCategory = async (categoryId: string, channelId: string) => {
-    try {
-      const res = await fetch('/api/rebuild/add-stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categoryId, channelId }),
-      });
-      if (res.ok) {
-        const updatedCat = await res.json();
-        setRebuildCategories((prev) =>
-          prev.map((c) => (c.id === categoryId ? updatedCat : c))
-        );
-      }
-    } catch (err) {
-      console.error('Error adding stream to category:', err);
-    }
-  };
-
-  const handleRemoveStreamFromCategory = async (categoryId: string, channelId: string) => {
-    try {
-      const res = await fetch('/api/rebuild/remove-stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categoryId, channelId }),
-      });
-      if (res.ok) {
-        const updatedCat = await res.json();
-        setRebuildCategories((prev) =>
-          prev.map((c) => (c.id === categoryId ? updatedCat : c))
-        );
-      }
-    } catch (err) {
-      console.error('Error removing stream from category:', err);
-    }
-  };
-
-  // Group Management Actions
-  const handleRenameGroup = async (oldName: string, newName: string) => {
-    try {
-      await fetch('/api/groups/rename', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ oldName, newName }),
-      });
-      await Promise.all([fetchGroups(), fetchStreams()]);
-    } catch (err) {
-      console.error('Error renaming group:', err);
-    }
-  };
-
-  const handleBulkSetLogo = async (groupName: string, logoUrl: string) => {
-    try {
-      await fetch('/api/groups/bulk-logo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupName, logoUrl }),
-      });
-      await Promise.all([fetchGroups(), fetchStreams()]);
-    } catch (err) {
-      console.error('Error setting group logo:', err);
-    }
-  };
-
-  const handleRemovePrefix = async (prefix: string) => {
-    try {
-      await fetch('/api/groups/remove-prefix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prefix }),
-      });
-      await Promise.all([fetchGroups(), fetchStreams()]);
-    } catch (err) {
-      console.error('Error stripping prefix:', err);
-    }
-  };
-
-  const handleDeleteGroup = async (groupName: string, deleteChannels: boolean) => {
-    if (!window.confirm(`Delete category "${groupName}"?`)) return;
-    try {
-      await fetch('/api/groups/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupName, deleteChannels }),
-      });
-      await Promise.all([fetchGroups(), fetchStreams()]);
-    } catch (err) {
-      console.error('Error deleting group:', err);
-    }
-  };
-
-  const handleCreateGroup = async (name: string) => {
-    setGroups((prev) => [...prev, { name, count: 0 }]);
-  };
-
-  // Settings & Backup
-  const handleSaveSettings = async (newSettings: Partial<AppSettings>) => {
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSettings),
-      });
-      if (res.ok) {
-        const saved = await res.json();
-        setSettings(saved);
-      }
-    } catch (err) {
-      console.error('Error saving settings:', err);
-    }
-  };
-
-  const handleExportBackup = () => {
-    window.location.href = '/api/backup/export';
-  };
-
-  const handleImportBackup = async (data: any) => {
-    await fetch('/api/backup/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    await refreshAll();
-  };
-
-  const activeChannelCount = channels.filter((c) => c.status !== 'trashed').length;
-  const availableGroupNames = groups.map((g) => g.name);
+  const [activeTab, setActiveTab] = useState<Tab>('empire');
 
   return (
-    <div className="min-h-screen text-gray-100 relative selection:bg-amber-500 selection:text-black">
-      {/* Background Video directly from Cloudfront without blur */}
+    <div className="min-h-screen text-slate-200 font-sans selection:bg-amber-500/30">
       <VideoBackground />
+      
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-black/20 backdrop-blur-md border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Crown className="text-black" size={28} />
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-white tracking-tight">NEXUS EMPIRE</h1>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-[0.2em]">Stream Engine & Studio</p>
+            </div>
+          </div>
+          
+          <nav className="hidden md:flex items-center gap-1 bg-black/30 p-1.5 rounded-2xl border border-white/5">
+            <TabButton 
+              active={activeTab === 'empire'} 
+              onClick={() => setActiveTab('empire')}
+              icon={<Shield size={16} />}
+              label="Nexus Empire"
+            />
+            <TabButton 
+              active={activeTab === 'rebuild'} 
+              onClick={() => setActiveTab('rebuild')}
+              icon={<Layers size={16} />}
+              label="Nexus Rebuild"
+            />
+            <TabButton 
+              active={activeTab === 'global'} 
+              onClick={() => setActiveTab('global')}
+              icon={<Globe size={16} />}
+              label="Global Streams"
+            />
+            <TabButton 
+              active={activeTab === 'sports'} 
+              onClick={() => setActiveTab('sports')}
+              icon={<PlayCircle size={16} className="text-emerald-400" />}
+              label="Sports Hub"
+            />
+            <TabButton 
+              active={activeTab === 'status'} 
+              onClick={() => setActiveTab('status')}
+              icon={<Activity size={16} />}
+              label="System"
+            />
+          </nav>
 
-      {/* Main Header / Top Navbar */}
-      <Navbar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        totalChannels={activeChannelCount}
-        totalSources={sources.length}
-        domain={settings.domain}
-        publicBaseUrl={publicBaseUrl}
-        nextScheduledFetch={nextScheduledFetch}
-        isFetching={isFetching}
-        onFetchAll={handleFetchAll}
-        onOpenAddSource={() => setIsAddSourceOpen(true)}
-        onOpenAddStream={() => setIsAddStreamOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-      />
+          <div className="flex items-center gap-3">
+            <div className="hidden lg:flex flex-col items-end mr-2">
+              <span className="text-[10px] text-white/40 uppercase font-bold">Server Port</span>
+              <span className="text-xs text-amber-500 font-mono">8443</span>
+            </div>
+            <button className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all text-white/60">
+              <Settings size={20} />
+            </button>
+          </div>
+        </div>
+      </header>
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {activeTab === 'global' && (
-          <GlobalPlaylistsTab
-            sources={sources}
-            channels={channels}
-            rebuildCategories={rebuildCategories}
-            publicBaseUrl={publicBaseUrl}
-            onPlayStream={(s) => setActivePlayerStream(s)}
-            onEditStream={(s) => setEditingStream(s)}
-            onDeleteStream={handleDeleteStream}
-            onAddToRebuild={handleAddStreamToCategory}
-            onFetchSource={handleFetchSource}
-            onToggleAutoRefresh={handleToggleAutoRefresh}
-            onDeleteSource={handleDeleteSource}
-            onOpenAddSource={() => setIsAddSourceOpen(true)}
-            onEditSource={(src) => setEditingSource(src)}
-          />
-        )}
-
-        {activeTab === 'nexus' && (
-          <NexusEmpireTab
-            channels={channels}
-            rebuildCategories={rebuildCategories}
-            onPlayStream={(s) => setActivePlayerStream(s)}
-            onEditStream={(s) => setEditingStream(s)}
-            onDeleteStream={handleDeleteStream}
-            onAddToRebuild={handleAddStreamToCategory}
-            onAddCustomStream={handleAddCustomStream}
-          />
-        )}
-
-        {activeTab === 'events' && (
-          <LiveEventsTab
-            channels={channels}
-            sources={sources}
-            rebuildCategories={rebuildCategories}
-            onPlayStream={(s) => setActivePlayerStream(s)}
-            onEditStream={(s) => setEditingStream(s)}
-            onAddToRebuild={handleAddStreamToCategory}
-            onFetchSource={handleFetchSource}
-          />
-        )}
-
-        {activeTab === 'rebuild' && (
-          <NexusRebuildTab
-            categories={rebuildCategories}
-            allChannels={channels}
-            onAddCategory={handleAddCategory}
-            onUpdateCategory={handleUpdateCategory}
-            onDeleteCategory={handleDeleteCategory}
-            onRemoveStreamFromCategory={handleRemoveStreamFromCategory}
-            onAddStreamToCategory={handleAddStreamToCategory}
-            onPlayStream={(s) => setActivePlayerStream(s)}
-            onEditStream={(s) => setEditingStream(s)}
-          />
-        )}
-
-        {activeTab === 'groups' && (
-          <GroupManagerTab
-            groups={groups}
-            publicBaseUrl={publicBaseUrl}
-            onRenameGroup={handleRenameGroup}
-            onBulkSetLogo={handleBulkSetLogo}
-            onRemovePrefix={handleRemovePrefix}
-            onDeleteGroup={handleDeleteGroup}
-            onCreateGroup={handleCreateGroup}
-          />
-        )}
-
-        {activeTab === 'cloudstream' && (
-          <CloudStreamTab
-            items={cloudstreamItems}
-            publicBaseUrl={publicBaseUrl}
-          />
-        )}
-
-        {activeTab === 'skystream' && (
-          <SkyStreamTab
-            skyItems={skystreamItems}
-            stremioAddons={stremioAddons}
-            publicBaseUrl={publicBaseUrl}
-          />
-        )}
-
-        {activeTab === 'dedup' && (
-          <AiDeduplicationTab
-            channels={channels}
-            onPlayStream={(s) => setActivePlayerStream(s)}
-            onSendToTrash={handleDeleteStream}
-            onRestoreFromTrash={handleRestoreFromTrash}
-            onEmptyTrash={handleEmptyTrash}
-            onBulkQuarantine={handleBulkQuarantine}
-          />
-        )}
-
-        {activeTab === 'generator' && (
-          <M3uGeneratorTab
-            sources={sources}
-            channels={channels}
-            publicBaseUrl={publicBaseUrl}
-          />
-        )}
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {activeTab === 'empire' && <NexusEmpireTab />}
+          {activeTab === 'rebuild' && <NexusRebuildTab />}
+          {activeTab === 'global' && <GlobalPlaylistsTab />}
+          {activeTab === 'sports' && <SportsHubTab />}
+          {activeTab === 'status' && <StatusTab />}
+        </div>
       </main>
 
-      {/* Modals */}
-      {activePlayerStream && (
-        <StreamPlayerModal
-          stream={activePlayerStream}
-          onClose={() => setActivePlayerStream(null)}
-        />
-      )}
+      {/* Mobile Nav */}
+      <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-2 flex justify-around shadow-2xl">
+        <MobileTabButton active={activeTab === 'empire'} onClick={() => setActiveTab('empire')} icon={<Shield size={20} />} />
+        <MobileTabButton active={activeTab === 'rebuild'} onClick={() => setActiveTab('rebuild')} icon={<Layers size={20} />} />
+        <MobileTabButton active={activeTab === 'global'} onClick={() => setActiveTab('global')} icon={<Globe size={20} />} />
+        <MobileTabButton active={activeTab === 'sports'} onClick={() => setActiveTab('sports')} icon={<PlayCircle size={20} />} />
+        <MobileTabButton active={activeTab === 'status'} onClick={() => setActiveTab('status')} icon={<Activity size={20} />} />
+      </div>
+    </div>
+  );
+}
 
-      {editingStream && (
-        <EditStreamModal
-          stream={editingStream}
-          availableGroups={availableGroupNames}
-          onClose={() => setEditingStream(null)}
-          onSave={handleUpdateStream}
-        />
-      )}
+function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 ${
+        active 
+          ? 'bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/10' 
+          : 'text-white/40 hover:text-white/80 hover:bg-white/5'
+      }`}
+    >
+      {icon}
+      <span className="text-sm">{label}</span>
+    </button>
+  );
+}
 
-      {editingSource && (
-        <EditSourceModal
-          source={editingSource}
-          publicBaseUrl={publicBaseUrl}
-          onClose={() => setEditingSource(null)}
-          onSave={handleSaveSource}
-        />
-      )}
+function MobileTabButton({ active, onClick, icon }: { active: boolean; onClick: () => void; icon: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`p-4 rounded-2xl transition-all ${
+        active ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-white/40'
+      }`}
+    >
+      {icon}
+    </button>
+  );
+}
 
-      {isAddSourceOpen && (
-        <AddSourceModal
-          onClose={() => setIsAddSourceOpen(false)}
-          onAdd={handleAddSource}
-        />
-      )}
+function StatusTab() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="bg-black/30 border border-white/10 rounded-3xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <Database className="text-amber-500" size={24} />
+          <h3 className="text-white font-bold">Persistence Engine</h3>
+        </div>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-white/40">Mode</span>
+            <span className="text-emerald-400 font-mono">FILESYSTEM_JSON</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-white/40">Cache Size</span>
+            <span className="text-white">~2.4 MB</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-white/40">Auto-Save</span>
+            <span className="text-emerald-400">ENABLED</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-black/30 border border-white/10 rounded-3xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <Activity className="text-amber-500" size={24} />
+          <h3 className="text-white font-bold">Sync Worker</h3>
+        </div>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-white/40">Interval</span>
+            <span className="text-white">15 Minutes</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-white/40">Status</span>
+            <span className="text-emerald-400">OPERATIONAL</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-white/40">Worker ID</span>
+            <span className="text-white font-mono">NX-2903-W</span>
+          </div>
+        </div>
+      </div>
 
-      {isAddStreamOpen && (
-        <AddStreamModal
-          onClose={() => setIsAddStreamOpen(false)}
-          onAdd={handleAddCustomStream}
-        />
-      )}
-
-      {isSettingsOpen && (
-        <SettingsModal
-          settings={settings}
-          onClose={() => setIsSettingsOpen(false)}
-          onSave={handleSaveSettings}
-          onExportBackup={handleExportBackup}
-          onImportBackup={handleImportBackup}
-        />
-      )}
+      <div className="bg-black/30 border border-white/10 rounded-3xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <Crown className="text-amber-500" size={24} />
+          <h3 className="text-white font-bold">License & Node</h3>
+        </div>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-white/40">Edition</span>
+            <span className="text-amber-500 font-bold italic">PRIME</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-white/40">Uptime</span>
+            <span className="text-white">99.99%</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-white/40">Node Location</span>
+            <span className="text-white">CONTABO_VPS_EU</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,441 +1,244 @@
-import React, { useState } from 'react';
-import {
-  ChannelStream,
-  PlaylistSource,
-  RebuildCategory,
-} from '../types/playlist';
-import {
-  Search,
-  Filter,
-  Play,
-  Edit2,
-  Trash2,
-  Plus,
-  RefreshCw,
-  ExternalLink,
-  Layers,
-  Copy,
-  Check,
-  Server,
-  Sparkles,
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, useEffect, useMemo } from 'react';
+import { ChannelItem, PlaylistSource } from '../types';
+import { 
+  Search, 
+  Settings2, 
+  Trash2, 
+  RefreshCw, 
+  Play, 
+  Edit3, 
+  Save, 
+  X,
+  Radio,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
-interface GlobalPlaylistsTabProps {
-  sources: PlaylistSource[];
-  channels: ChannelStream[];
-  rebuildCategories: RebuildCategory[];
-  publicBaseUrl: string;
-  onPlayStream: (stream: ChannelStream) => void;
-  onEditStream: (stream: ChannelStream) => void;
-  onDeleteStream: (streamId: string) => void;
-  onAddToRebuild: (categoryId: string, channelId: string) => void;
-  onFetchSource: (sourceId: string) => void;
-  onToggleAutoRefresh: (source: PlaylistSource) => void;
-  onDeleteSource: (sourceId: string) => void;
-  onOpenAddSource: () => void;
-  onEditSource: (source: PlaylistSource) => void;
-}
-
-export const GlobalPlaylistsTab: React.FC<GlobalPlaylistsTabProps> = ({
-  sources,
-  channels,
-  rebuildCategories,
-  publicBaseUrl,
-  onPlayStream,
-  onEditStream,
-  onDeleteStream,
-  onAddToRebuild,
-  onFetchSource,
-  onToggleAutoRefresh,
-  onDeleteSource,
-  onOpenAddSource,
-  onEditSource,
-}) => {
+export default function GlobalPlaylistsTab() {
+  const [channels, setChannels] = useState<ChannelItem[]>([]);
+  const [sources, setSources] = useState<PlaylistSource[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState('ALL');
-  const [selectedSourceId, setSelectedSourceId] = useState('ALL');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [selectedRebuildCat, setSelectedRebuildCat] = useState<string>(
-    rebuildCategories[0]?.id || ''
-  );
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<ChannelItem>>({});
+  
+  // Pagination
+  const [page, setPage] = useState(1);
+  const pageSize = 100;
 
-  // Derive unique groups
-  const groups = Array.from(
-    new Set(channels.map((c) => c.group || 'General').filter(Boolean))
-  ).sort();
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  // Filter channels
-  const filteredChannels = channels.filter((c) => {
-    if (c.status === 'trashed') return false;
-
-    if (selectedSourceId !== 'ALL' && c.sourceId !== selectedSourceId) {
-      return false;
-    }
-
-    if (selectedGroup !== 'ALL' && (c.group || 'General') !== selectedGroup) {
-      return false;
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchTitle = c.title.toLowerCase().includes(q);
-      const matchGroup = (c.group || '').toLowerCase().includes(q);
-      const matchUrl = c.url.toLowerCase().includes(q);
-      const matchTvg = (c.tvgName || c.tvgId || '').toLowerCase().includes(q);
-      return matchTitle || matchGroup || matchUrl || matchTvg;
-    }
-
-    return true;
-  });
-
-  const handleCopyUrl = (url: string, id: string) => {
-    navigator.clipboard.writeText(url);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const fetchData = async () => {
+    const [cRes, sRes] = await Promise.all([
+      fetch('/api/channels'),
+      fetch('/api/status')
+    ]);
+    const cData = await cRes.json();
+    const sData = await sRes.json();
+    setChannels(cData);
+    setSources(sData.sources);
   };
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    await fetch('/api/sync', { method: 'POST' });
+    await fetchData();
+    setIsSyncing(false);
+  };
+
+  const startEdit = (ch: ChannelItem) => {
+    setEditingId(ch.id);
+    setEditForm({
+      customName: ch.customName || ch.name,
+      customLogo: ch.customLogo || ch.tvgLogo || '',
+      customGroup: ch.customGroup || ch.groupTitle,
+      enabled: ch.enabled
+    });
+  };
+
+  const saveEdit = async (id: string) => {
+    await fetch(`/api/channels/${id}/override`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm)
+    });
+    setChannels(channels.map(ch => ch.id === id ? { ...ch, ...editForm } : ch));
+    setEditingId(null);
+  };
+
+  const filteredChannels = useMemo(() => {
+    return channels.filter(ch => 
+      ch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ch.groupTitle.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [channels, searchQuery]);
+
+  const paginatedChannels = useMemo(() => {
+    return filteredChannels.slice((page - 1) * pageSize, page * pageSize);
+  }, [filteredChannels, page]);
+
+  const totalPages = Math.ceil(filteredChannels.length / pageSize);
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Source Overview */}
-      <section className="crystal-panel rounded-xl p-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-amber-400" />
-              Connected Playlists & Gateways
-            </h2>
-            <p className="text-xs text-gray-300">
-              Aggregating M3U URLs from GitHub, Cloudflare Pages, Workers, PHP backends, and Lovable apps.
-            </p>
+      {/* Top Bar */}
+      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+        <div className="flex items-center gap-4 w-full lg:w-auto">
+          <div className="relative flex-1 lg:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+            <input 
+              type="text"
+              placeholder="Filter channels..."
+              className="w-full bg-black/30 border border-white/10 rounded-2xl pl-10 pr-4 py-3 text-sm text-white outline-none focus:border-amber-500/50 transition-all"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+            />
           </div>
-          <button
-            onClick={onOpenAddSource}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 transition-all shadow-md self-start md:self-auto"
+          <button 
+            onClick={handleSync}
+            disabled={isSyncing}
+            className={`p-3 bg-white/5 border border-white/10 rounded-2xl text-white hover:bg-white/10 transition-all ${isSyncing ? 'animate-spin' : ''}`}
           >
-            <Plus className="w-4 h-4" /> Add New Playlist
+            <RefreshCw size={20} />
           </button>
         </div>
 
-        {/* Source Cards Horizontal Carousel / Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {sources.map((src) => {
-            const isOnline = src.status === 'online';
-            const isFetching = src.status === 'fetching';
-            const hasError = src.status === 'error';
-
-            return (
-              <div
-                key={src.id}
-                className={`p-3 rounded-lg border transition-all ${
-                  selectedSourceId === src.id
-                    ? 'crystal-panel border-cyan-400/60 ring-1 ring-cyan-400/30'
-                    : 'crystal-panel-subtle hover:border-white/20'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          isFetching
-                            ? 'bg-amber-400 animate-ping'
-                            : isOnline
-                            ? 'bg-emerald-400'
-                            : hasError
-                            ? 'bg-rose-500'
-                            : 'bg-gray-400'
-                        }`}
-                      />
-                      <h3 className="font-semibold text-xs text-gray-100 truncate" title={src.name}>
-                        {src.name}
-                      </h3>
-                    </div>
-                    <p
-                      className="text-[11px] font-mono text-gray-400 truncate mt-0.5"
-                      title={src.url}
-                    >
-                      {src.url}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => {
-                        const url = `${publicBaseUrl}/${src.slug || src.id}.m3u`;
-                        handleCopyUrl(url, `src-url-${src.id}`);
-                      }}
-                      title={`Copy Dedicated Playlist URL (/${src.slug || src.id}.m3u)`}
-                      className="p-1 rounded bg-black/40 hover:bg-black/80 text-cyan-300 hover:text-white transition-colors"
-                    >
-                      {copiedId === `src-url-${src.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                    <button
-                      onClick={() => onEditSource(src)}
-                      title="Edit / Rename Playlist & Slug"
-                      className="p-1 rounded bg-black/40 hover:bg-black/80 text-gray-300 hover:text-white transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onFetchSource(src.id)}
-                      disabled={isFetching}
-                      title="Fetch now"
-                      className="p-1 rounded bg-black/40 hover:bg-black/80 text-gray-300 hover:text-white transition-colors"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-amber-400' : ''}`} />
-                    </button>
-                    {src.category === 'custom' && (
-                      <button
-                        onClick={() => onDeleteSource(src.id)}
-                        title="Remove source"
-                        className="p-1 rounded bg-black/40 hover:bg-rose-900/40 text-gray-400 hover:text-rose-300 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400">
-                  <span className="font-mono text-cyan-300">
-                    {src.channelCount} streams
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectedSourceId(selectedSourceId === src.id ? 'ALL' : src.id)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                        selectedSourceId === src.id
-                          ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-500/50'
-                          : 'bg-black/30 hover:bg-black/60 text-gray-300'
-                      }`}
-                    >
-                      {selectedSourceId === src.id ? 'Selected' : 'Filter'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Channel Streams Explorer & Tools */}
-      <section className="crystal-panel rounded-xl p-5 space-y-4">
-        {/* Search, Filters, and Actions */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search streams by name, tvg-id, category, or URL..."
-              className="w-full pl-9 pr-4 py-2 text-xs rounded-lg crystal-input text-white placeholder-gray-400"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Category Filter */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/60 border border-white/10 text-xs">
-              <Filter className="w-3.5 h-3.5 text-amber-400" />
-              <select
-                value={selectedGroup}
-                onChange={(e) => setSelectedGroup(e.target.value)}
-                className="bg-transparent text-gray-200 text-xs focus:outline-none cursor-pointer max-w-[160px]"
-              >
-                <option value="ALL" className="bg-gray-900 text-white">All Categories ({channels.length})</option>
-                {groups.map((grp) => (
-                  <option key={grp} value={grp} className="bg-gray-900 text-white">
-                    {grp}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Source Filter */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/60 border border-white/10 text-xs">
-              <Server className="w-3.5 h-3.5 text-cyan-400" />
-              <select
-                value={selectedSourceId}
-                onChange={(e) => setSelectedSourceId(e.target.value)}
-                className="bg-transparent text-gray-200 text-xs focus:outline-none cursor-pointer max-w-[160px]"
-              >
-                <option value="ALL" className="bg-gray-900 text-white">All Gateways</option>
-                {sources.map((src) => (
-                  <option key={src.id} value={src.id} className="bg-gray-900 text-white">
-                    {src.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Quick Rebuild Target Category Picker */}
-            {rebuildCategories.length > 0 && (
-              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-950/40 border border-purple-500/30 text-xs">
-                <span className="text-[10px] text-purple-300 font-medium">Rebuild:</span>
-                <select
-                  value={selectedRebuildCat}
-                  onChange={(e) => setSelectedRebuildCat(e.target.value)}
-                  className="bg-transparent text-purple-200 text-xs focus:outline-none cursor-pointer max-w-[130px]"
-                >
-                  {rebuildCategories.map((c) => (
-                    <option key={c.id} value={c.id} className="bg-gray-900 text-white">
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Channels Counter & Info */}
-        <div className="flex items-center justify-between text-xs text-gray-400 px-1">
-          <span>
-            Showing <strong className="text-white font-mono">{filteredChannels.length}</strong> of{' '}
-            <strong className="text-white font-mono">{channels.length}</strong> streams
-          </span>
-          {(selectedGroup !== 'ALL' || selectedSourceId !== 'ALL' || searchQuery) && (
-            <button
-              onClick={() => {
-                setSelectedGroup('ALL');
-                setSelectedSourceId('ALL');
-                setSearchQuery('');
-              }}
-              className="text-amber-400 hover:underline text-xs"
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 w-full lg:w-auto">
+          {sources.map(source => (
+            <div 
+              key={source.id}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] whitespace-nowrap ${
+                source.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                source.status === 'error' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' :
+                'bg-white/5 border-white/10 text-white/40'
+              }`}
             >
-              Reset Filters
-            </button>
-          )}
-        </div>
-
-        {/* Streams List / Grid */}
-        <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-          {filteredChannels.length === 0 ? (
-            <div className="text-center py-12 crystal-panel-subtle rounded-lg">
-              <p className="text-gray-300 text-sm font-semibold">No streams found</p>
-              <p className="text-gray-400 text-xs mt-1">
-                Try adjusting your search query, selecting another category, or fetching the playlists.
-              </p>
+              {source.status === 'success' ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
+              {source.name} ({source.channelCount})
             </div>
-          ) : (
-            filteredChannels.map((stream) => {
-              const isCopied = copiedId === stream.id;
+          ))}
+        </div>
+      </div>
 
-              return (
-                <div
-                  key={stream.id}
-                  className="crystal-panel-subtle hover:bg-white/10 p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-colors group"
+      {/* Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {paginatedChannels.map(ch => (
+          <div 
+            key={ch.id}
+            className="bg-black/30 border border-white/10 rounded-2xl p-4 hover:border-white/20 transition-all group relative"
+          >
+            {editingId === ch.id ? (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-white font-bold text-xs uppercase tracking-wider">Editing Stream</h4>
+                  <button onClick={() => setEditingId(null)} className="text-white/40 hover:text-white">
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <input 
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white"
+                    value={editForm.customName}
+                    onChange={e => setEditForm({ ...editForm, customName: e.target.value })}
+                    placeholder="Custom Name"
+                  />
+                  <input 
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white"
+                    value={editForm.customLogo}
+                    onChange={e => setEditForm({ ...editForm, customLogo: e.target.value })}
+                    placeholder="Logo URL"
+                  />
+                  <input 
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white"
+                    value={editForm.customGroup}
+                    onChange={e => setEditForm({ ...editForm, customGroup: e.target.value })}
+                    placeholder="Group Title"
+                  />
+                  <label className="flex items-center gap-2 text-[10px] text-white/60">
+                    <input 
+                      type="checkbox"
+                      checked={editForm.enabled}
+                      onChange={e => setEditForm({ ...editForm, enabled: e.target.checked })}
+                    />
+                    Enabled
+                  </label>
+                </div>
+                <button 
+                  onClick={() => saveEdit(ch.id)}
+                  className="w-full py-2 bg-amber-500 text-black font-bold rounded-xl text-xs flex items-center justify-center gap-2"
                 >
-                  {/* Left: Logo & Channel Meta */}
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded bg-black/60 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                      {stream.logo ? (
-                        <img
-                          src={stream.logo}
-                          alt={stream.title}
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <span className="text-xs font-bold text-gray-400">
-                          {stream.title.slice(0, 2).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-xs font-bold text-white truncate" title={stream.title}>
-                          {stream.title}
-                        </h4>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-black/40 text-amber-300 border border-amber-500/20 font-mono">
-                          {stream.group || 'General'}
-                        </span>
-                        {stream.tvgId && (
-                          <span className="text-[10px] text-gray-400 font-mono hidden md:inline">
-                            id: {stream.tvgId}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] text-gray-400 font-mono truncate mt-0.5">
-                        <span className="text-cyan-400 text-[10px] uppercase px-1 rounded bg-cyan-950/60 border border-cyan-800/40">
-                          {stream.sourceName}
-                        </span>
-                        <span className="truncate opacity-70" title={stream.url}>
-                          {stream.url}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Actions */}
-                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                    {/* Play Stream */}
-                    <button
-                      onClick={() => onPlayStream(stream)}
-                      title="Test / Play Stream"
-                      className="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/30 transition-colors flex items-center gap-1 text-xs"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span className="hidden sm:inline">Play</span>
-                    </button>
-
-                    {/* Add to Rebuild */}
-                    {rebuildCategories.length > 0 && selectedRebuildCat && (
-                      <button
-                        onClick={() => onAddToRebuild(selectedRebuildCat, stream.id)}
-                        title="Add to Rebuild Category"
-                        className="p-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 border border-purple-500/30 transition-colors flex items-center gap-1 text-xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Rebuild</span>
-                      </button>
+                  <Save size={14} />
+                  Save Changes
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                    {ch.customLogo || ch.tvgLogo ? (
+                      <img src={ch.customLogo || ch.tvgLogo || ''} alt="" className="w-full h-full object-contain" />
+                    ) : (
+                      <Radio className="w-6 h-6 text-white/20" />
                     )}
-
-                    {/* Copy URL */}
-                    <button
-                      onClick={() => handleCopyUrl(stream.url, stream.id)}
-                      title="Copy Stream URL"
-                      className="p-1.5 rounded-lg bg-black/40 hover:bg-black/70 text-gray-300 hover:text-white border border-white/10 transition-colors"
-                    >
-                      {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-
-                    {/* Edit Stream */}
-                    <button
-                      onClick={() => onEditStream(stream)}
-                      title="Edit Stream Attributes"
-                      className="p-1.5 rounded-lg bg-black/40 hover:bg-black/70 text-gray-300 hover:text-white border border-white/10 transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Trash Stream */}
-                    <button
-                      onClick={() => onDeleteStream(stream.id)}
-                      title="Move to Trash"
-                      className="p-1.5 rounded-lg bg-black/40 hover:bg-rose-950/60 text-gray-400 hover:text-rose-400 border border-white/10 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-white font-bold text-sm truncate">{ch.customName || ch.name}</h4>
+                    <p className="text-[10px] text-white/40 truncate uppercase tracking-tighter">{ch.customGroup || ch.groupTitle}</p>
+                    <p className="text-[9px] text-amber-500/50 truncate font-mono mt-0.5">{ch.sourceId}</p>
+                  </div>
+                  <button 
+                    onClick={() => startEdit(ch)}
+                    className="p-2 bg-white/5 hover:bg-amber-500 hover:text-black rounded-lg transition-all text-white/40 opacity-0 group-hover:opacity-100"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between mt-auto">
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${ch.enabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                    {ch.enabled ? 'ACTIVE' : 'DISABLED'}
+                  </span>
+                  <div className="flex gap-1">
+                    {ch.directives?.length ? (
+                      <span className="text-[8px] text-white/20 px-1 border border-white/10 rounded">DRCT</span>
+                    ) : null}
+                    <button className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-white/60">
+                      <Play size={12} fill="currentColor" />
                     </button>
                   </div>
                 </div>
-              );
-            })
-          )}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 py-8">
+          <button 
+            disabled={page === 1}
+            onClick={() => setPage(p => p - 1)}
+            className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-20 hover:bg-white/10 transition-all"
+          >
+            Previous
+          </button>
+          <span className="text-xs text-white/60">Page {page} of {totalPages}</span>
+          <button 
+            disabled={page === totalPages}
+            onClick={() => setPage(p => p + 1)}
+            className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-20 hover:bg-white/10 transition-all"
+          >
+            Next
+          </button>
         </div>
-      </section>
+      )}
     </div>
   );
-};
+}
