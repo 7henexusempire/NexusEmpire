@@ -12,9 +12,14 @@ import {
   Radio,
   Download,
   Filter,
+  Edit2,
+  Trash2,
+  Plus,
+  X,
+  Image,
+  FolderInput
 } from 'lucide-react';
 import { SportsEventItem } from '../types';
-
 import { getCleanOrigin } from '../utils/urlUtils';
 
 interface FanCodeViewProps {
@@ -35,7 +40,16 @@ export const FanCodeView: React.FC<FanCodeViewProps> = ({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const cleanBase = (publicBaseUrl ? publicBaseUrl.replace(':8443', '').replace(':3000', '') : getCleanOrigin());
+  // Modals
+  const [editingItem, setEditingItem] = useState<SportsEventItem | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkLogoModal, setShowBulkLogoModal] = useState(false);
+
+  // Form states
+  const [newItem, setNewItem] = useState({ title: '', category: 'Cricket & Sports', logo: '', url: '' });
+  const [bulkLogoData, setBulkLogoData] = useState({ categoryName: '', logoUrl: '' });
+
+  const cleanBase = publicBaseUrl ? publicBaseUrl.replace(':8443', '').replace(':3000', '') : getCleanOrigin();
   const m3uUrl = `${cleanBase}/fancode.m3u`;
 
   const fetchEvents = async () => {
@@ -78,7 +92,97 @@ export const FanCodeView: React.FC<FanCodeViewProps> = ({
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
-  const sportsList = Array.from(new Set(events.map((e) => e.sport || e.category || 'Cricket').filter(Boolean)));
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    try {
+      const res = await fetch(`/api/events/${editingItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editingItem.title,
+          category: editingItem.category,
+          logo: editingItem.logo,
+          url: editingItem.url,
+        }),
+      });
+      if (res.ok) {
+        onNotify('success', 'FanCode Stream Updated');
+        setEditingItem(null);
+        fetchEvents();
+      }
+    } catch {
+      onNotify('error', 'Failed to update stream');
+    }
+  };
+
+  const handleDeleteStream = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this stream?')) return;
+    try {
+      const res = await fetch(`/api/events/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        onNotify('success', 'Stream Removed');
+        fetchEvents();
+      }
+    } catch {
+      onNotify('error', 'Failed to delete stream');
+    }
+  };
+
+  const handleAddStream = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItem.title || !newItem.url) {
+      onNotify('error', 'Title and Stream URL are required');
+      return;
+    }
+    try {
+      const res = await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newItem,
+          service: 'fancode',
+        }),
+      });
+      if (res.ok) {
+        onNotify('success', 'Stream Added to FanCode');
+        setShowAddModal(false);
+        setNewItem({ title: '', category: 'Cricket & Sports', logo: '', url: '' });
+        fetchEvents();
+      }
+    } catch {
+      onNotify('error', 'Failed to add stream');
+    }
+  };
+
+  const handleBulkLogoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkLogoData.categoryName || !bulkLogoData.logoUrl) {
+      onNotify('error', 'Category Name and Logo URL required');
+      return;
+    }
+    try {
+      const res = await fetch('/api/events/bulk-category-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service: 'fancode',
+          categoryName: bulkLogoData.categoryName,
+          logoUrl: bulkLogoData.logoUrl,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onNotify('success', `Applied Logo across ${data.count || 0} streams in ${bulkLogoData.categoryName}`);
+        setShowBulkLogoModal(false);
+        fetchEvents();
+      }
+    } catch {
+      onNotify('error', 'Failed to apply category logo');
+    }
+  };
+
+  const categories = Array.from(new Set(events.map((e) => e.category || e.sport || 'Cricket & Sports').filter(Boolean)));
 
   const filteredEvents = events.filter((e) => {
     const matchesSearch =
@@ -119,77 +223,79 @@ export const FanCodeView: React.FC<FanCodeViewProps> = ({
           {/* Quick M3U & Sync Action */}
           <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
             <button
-              onClick={() => copyToClipboard(m3uUrl, 'FanCode M3U URL', 'm3u-main')}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+              onClick={() => copyToClipboard(m3uUrl, 'FanCode M3U URL', 'fancode_m3u')}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-lg shadow-amber-500/20 active:scale-95"
             >
-              {copiedKey === 'm3u-main' ? <Check className="w-4 h-4 text-slate-950" /> : <Copy className="w-4 h-4" />}
-              <span>Copy FanCode M3U</span>
+              {copiedKey === 'fancode_m3u' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              <span>{copiedKey === 'fancode_m3u' ? 'Copied M3U' : 'Copy FanCode M3U'}</span>
+            </button>
+
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs border border-slate-700 transition-all"
+            >
+              <Plus className="w-4 h-4 text-amber-400" />
+              <span>Add Stream</span>
+            </button>
+
+            <button
+              onClick={() => setShowBulkLogoModal(true)}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs border border-slate-700 transition-all"
+              title="Apply a logo URL to all streams in a category"
+            >
+              <Image className="w-4 h-4 text-cyan-400" />
+              <span>Category Logo</span>
             </button>
 
             <button
               onClick={handleManualSync}
               disabled={isSyncing}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold transition-all active:scale-95"
+              className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all"
+              title="Sync latest FanCode matches"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
             </button>
           </div>
         </div>
-
-        {/* M3U Link Box */}
-        <div className="mt-5 p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-center justify-between gap-3 text-xs font-mono">
-          <div className="flex items-center gap-2 truncate text-slate-300">
-            <span className="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-amber-400 uppercase font-bold tracking-wider">
-              IPTV URL
-            </span>
-            <span className="truncate">{m3uUrl}</span>
-          </div>
-          <button
-            onClick={() => copyToClipboard(m3uUrl, 'URL', 'box')}
-            className="text-amber-400 hover:text-amber-300 shrink-0 font-sans font-semibold text-[11px]"
-          >
-            {copiedKey === 'box' ? 'Copied!' : 'Copy'}
-          </button>
-        </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-3.5 rounded-2xl">
-        <div className="relative w-full sm:w-80">
+      {/* Controls Bar */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+        {/* Search */}
+        <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search matches, tournaments, teams..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:border-amber-400 outline-none transition-all"
+            placeholder="Search match title, category or tournament..."
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
           />
         </div>
 
         {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto scrollbar-none pb-1 sm:pb-0">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
           <button
             onClick={() => setSelectedSport('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all ${
               selectedSport === 'all'
-                ? 'bg-amber-500 text-slate-950'
-                : 'bg-slate-950/80 text-slate-400 hover:text-white border border-slate-800'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
             All Sports ({events.length})
           </button>
-          {sportsList.map((sport) => (
+          {categories.map((cat) => (
             <button
-              key={sport}
-              onClick={() => setSelectedSport(sport)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                selectedSport.toLowerCase() === sport.toLowerCase()
-                  ? 'bg-amber-500 text-slate-950'
-                  : 'bg-slate-950/80 text-slate-400 hover:text-white border border-slate-800'
+              key={cat}
+              onClick={() => setSelectedSport(cat)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all ${
+                selectedSport.toLowerCase() === cat.toLowerCase()
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
               }`}
             >
-              {sport}
+              {cat}
             </button>
           ))}
         </div>
@@ -197,132 +303,334 @@ export const FanCodeView: React.FC<FanCodeViewProps> = ({
 
       {/* Events Grid */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-24 text-slate-400">
-          <div className="w-10 h-10 border-3 border-amber-400 border-t-transparent rounded-full animate-spin mb-3"></div>
-          <p className="text-sm font-medium">Fetching FanCode events &amp; streams...</p>
+        <div className="flex flex-col items-center justify-center py-20 bg-slate-900/40 rounded-3xl border border-slate-800/80">
+          <RefreshCw className="w-8 h-8 text-amber-400 animate-spin mb-3" />
+          <p className="text-sm font-semibold text-slate-300">Fetching live FanCode events &amp; matches...</p>
         </div>
       ) : filteredEvents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-900/40 rounded-3xl border border-slate-800/80 p-8 text-center">
-          <Trophy className="w-12 h-12 text-slate-600 mb-3" />
-          <h3 className="text-base font-bold text-white">No matches found</h3>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm">
-            Try adjusting your search query or check back when live matches are scheduled.
-          </p>
+        <div className="text-center py-16 bg-slate-900/40 rounded-3xl border border-slate-800/80">
+          <Trophy className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+          <h3 className="text-sm font-bold text-white">No FanCode Events Found</h3>
+          <p className="text-xs text-slate-400 mt-1">Try searching a different match or sync fresh data.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredEvents.map((event) => {
-            const isLive = event.status?.toUpperCase() === 'LIVE';
-            const posterImg = event.poster || event.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredEvents.map((item) => {
+            const isLive = item.status === 'LIVE' || (item.title || '').toLowerCase().includes('live');
+            const streamUrl = item.url;
 
             return (
               <div
-                key={event.id}
-                className="group relative rounded-2xl bg-slate-900/70 hover:bg-slate-900/90 border border-slate-800 hover:border-amber-400/40 transition-all duration-300 overflow-hidden flex flex-col shadow-lg"
+                key={item.id}
+                className="bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 rounded-3xl p-5 shadow-xl flex flex-col justify-between transition-all group"
               >
-                {/* Poster / Thumbnail Header */}
-                <div className="relative h-40 bg-slate-950 flex items-center justify-center overflow-hidden">
-                  <img
-                    src={posterImg}
-                    alt={event.title}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
-                    }}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
-
-                  {/* Status Badge */}
-                  <div className="absolute top-3 left-3 flex items-center gap-2">
-                    {isLive ? (
-                      <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white shadow-md animate-pulse">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
-                        LIVE
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800/80 text-slate-300 border border-slate-700">
-                        {event.status || 'SCHEDULED'}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Category Badge */}
-                  <div className="absolute top-3 right-3">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30">
-                      {event.sport || event.category || 'Cricket'}
-                    </span>
-                  </div>
-
-                  {/* Play Overlay Button */}
-                  {event.url && (
-                    <button
-                      onClick={() =>
-                        onPreviewChannel({
-                          id: event.id,
-                          name: event.title,
-                          url: event.url,
-                          logo: posterImg,
-                          groupTitle: event.category || 'FanCode Live',
-                        })
-                      }
-                      className="absolute inset-0 m-auto w-12 h-12 rounded-2xl bg-amber-500/90 hover:bg-amber-400 text-slate-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl scale-75 group-hover:scale-100"
-                      title="Play live stream"
-                    >
-                      <Play className="w-6 h-6 fill-current ml-0.5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Details Body */}
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2">
-                      {event.title}
-                    </h3>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{event.startTime || 'Live Match Stream'}</span>
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
+                        <img
+                          src={item.logo || item.poster}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
+                          }}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${
+                              isLive ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-slate-800 text-slate-300'
+                            }`}
+                          >
+                            {isLive ? '• LIVE' : 'UPCOMING'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 truncate">{item.category}</span>
+                        </div>
+                        <h3 className="font-bold text-white text-sm truncate mt-1">{item.title}</h3>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800/60">
-                    {event.url ? (
-                      <>
-                        <button
-                          onClick={() =>
-                            onPreviewChannel({
-                              id: event.id,
-                              name: event.title,
-                              url: event.url,
-                              logo: posterImg,
-                              groupTitle: event.category || 'FanCode Live',
-                            })
-                          }
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold text-xs transition-all"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>Watch</span>
-                        </button>
+                  <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3 space-y-1.5 font-mono text-[11px]">
+                    <span className="text-slate-400 block text-[10px]">Stream URL:</span>
+                    <div className="truncate text-cyan-300">{streamUrl || 'No playable stream link found'}</div>
+                  </div>
+                </div>
 
-                        <button
-                          onClick={() => copyToClipboard(event.url, 'Stream URL', event.id)}
-                          className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-all"
-                          title="Copy direct stream link"
-                        >
-                          {copiedKey === event.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-[11px] text-slate-500 italic">Stream link starting soon</span>
+                <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {streamUrl && (
+                      <button
+                        onClick={() =>
+                          onPreviewChannel({
+                            id: item.id,
+                            name: item.title,
+                            url: streamUrl,
+                            tvgLogo: item.logo,
+                            groupTitle: item.category,
+                          })
+                        }
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all active:scale-95"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Watch</span>
+                      </button>
                     )}
+
+                    {streamUrl && (
+                      <button
+                        onClick={() => copyToClipboard(streamUrl, item.title, item.id)}
+                        className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                        title="Copy Stream Link"
+                      >
+                        {copiedKey === item.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditingItem(item)}
+                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                      title="Edit Stream"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteStream(item.id)}
+                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 transition-colors"
+                      title="Delete Stream"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* EDIT STREAM MODAL */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 animate-fadeIn">
+          <div className="bg-slate-900 border border-amber-500/40 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-white text-sm font-mono flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-amber-400" />
+                <span>Edit FanCode Stream</span>
+              </h3>
+              <button onClick={() => setEditingItem(null)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Title / Match Name</label>
+                <input
+                  type="text"
+                  value={editingItem.title}
+                  onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Category / Group</label>
+                <input
+                  type="text"
+                  value={editingItem.category}
+                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Logo URL</label>
+                <input
+                  type="text"
+                  value={editingItem.logo}
+                  onChange={(e) => setEditingItem({ ...editingItem, logo: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Stream URL</label>
+                <input
+                  type="text"
+                  value={editingItem.url}
+                  onChange={(e) => setEditingItem({ ...editingItem, url: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+                >
+                  Save Stream Details
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD STREAM MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 animate-fadeIn">
+          <div className="bg-slate-900 border border-amber-500/40 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-white text-sm font-mono flex items-center gap-2">
+                <Plus className="w-4 h-4 text-amber-400" />
+                <span>Add Stream to FanCode</span>
+              </h3>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddStream} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Title / Event Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. India vs Australia T20 Live"
+                  value={newItem.title}
+                  onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Category / Group</label>
+                <input
+                  type="text"
+                  placeholder="Cricket & Sports"
+                  value={newItem.category}
+                  onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Logo URL</label>
+                <input
+                  type="text"
+                  placeholder="https://..."
+                  value={newItem.logo}
+                  onChange={(e) => setNewItem({ ...newItem, logo: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Stream URL</label>
+                <input
+                  type="text"
+                  placeholder="https://..."
+                  value={newItem.url}
+                  onChange={(e) => setNewItem({ ...newItem, url: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+                >
+                  Add Stream
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BULK CATEGORY LOGO MODAL */}
+      {showBulkLogoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 animate-fadeIn">
+          <div className="bg-slate-900 border border-amber-500/40 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-white text-sm font-mono flex items-center gap-2">
+                <Image className="w-4 h-4 text-cyan-400" />
+                <span>Bulk Apply Category Logo</span>
+              </h3>
+              <button onClick={() => setShowBulkLogoModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkLogoSubmit} className="space-y-3.5 text-xs">
+              <p className="text-slate-400 leading-relaxed text-[11px]">
+                Apply a specific channel/category logo URL to ALL streams inside a selected category in one click.
+              </p>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Target Category</label>
+                <select
+                  value={bulkLogoData.categoryName}
+                  onChange={(e) => setBulkLogoData({ ...bulkLogoData, categoryName: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500"
+                >
+                  <option value="">Select Category...</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Logo URL to Apply</label>
+                <input
+                  type="text"
+                  placeholder="https://ik.imagekit.io/..."
+                  value={bulkLogoData.logoUrl}
+                  onChange={(e) => setBulkLogoData({ ...bulkLogoData, logoUrl: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkLogoModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold"
+                >
+                  Apply Logo Across Category
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

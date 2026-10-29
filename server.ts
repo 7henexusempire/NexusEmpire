@@ -1290,6 +1290,67 @@ app.get('/api/external/zee5', (req, res) => {
   return res.json(eventsService.getEvents('zee5'));
 });
 
+// Event Editing & Management Routes
+app.put('/api/events/:id', (req: Request, res: Response) => {
+  try {
+    const { title, category, logo, url, enabled } = req.body;
+    const ok = eventsService.updateEvent(req.params.id, { title, category, logo, url, enabled });
+    return res.json({ success: ok });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/events/:id', (req: Request, res: Response) => {
+  try {
+    const ok = eventsService.deleteEvent(req.params.id);
+    return res.json({ success: ok });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/events', (req: Request, res: Response) => {
+  try {
+    const { title, category, logo, url, service } = req.body;
+    if (!title || !url || !service) return res.status(400).json({ error: 'title, url and service are required' });
+    const created = eventsService.addCustomEvent({
+      title,
+      category: category || `${service.toUpperCase()} Custom`,
+      sport: 'Sports',
+      status: 'LIVE',
+      logo: logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
+      url,
+      service: service as any,
+    });
+    return res.json({ success: true, event: created });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/events/bulk-category-logo', (req: Request, res: Response) => {
+  try {
+    const { service, categoryName, logoUrl } = req.body;
+    if (!categoryName || !logoUrl) return res.status(400).json({ error: 'categoryName and logoUrl are required' });
+    const count = eventsService.bulkSetCategoryLogo(service || 'all', categoryName, logoUrl);
+    return res.json({ success: true, count });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/events/rename-category', (req: Request, res: Response) => {
+  try {
+    const { service, oldCategory, newCategory } = req.body;
+    if (!oldCategory || !newCategory) return res.status(400).json({ error: 'oldCategory and newCategory are required' });
+    const count = eventsService.renameCategory(service || 'all', oldCategory, newCategory);
+    return res.json({ success: true, count });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 startServer().catch((err) => {
   console.error('[Server] Fatal startup error:', err);
   process.exit(1);
