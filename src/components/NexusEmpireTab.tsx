@@ -219,9 +219,23 @@ export const NexusEmpireTab: React.FC<NexusEmpireTabProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {streamboxStreams.map((stream) => {
             const isCopied = copiedId === stream.id;
+            const isM3uCopied = copiedId === `m3u-${stream.id}`;
             const hashMatch = stream.url.match(/streambox:\/\/open\/([a-f0-9]+)/i);
-            const hashToken = hashMatch ? hashMatch[1] : stream.url;
             const statusMsg = resolveStatus[stream.id];
+
+            // Map IDs to the short URLs we created in server.ts
+            let dedicatedM3uUrl = '';
+            if (stream.id === 'sb-all-include') dedicatedM3uUrl = `${window.location.origin}/allinclude.m3u`;
+            else if (stream.id === 'sb-all-tv') dedicatedM3uUrl = `${window.location.origin}/alltv.m3u`;
+            else if (stream.id === 'sb-sony') dedicatedM3uUrl = `${window.location.origin}/sonynetwork.m3u`;
+            else if (stream.id === 'sb-all-match') dedicatedM3uUrl = `${window.location.origin}/matchevents.m3u`;
+            else if (stream.id === 'sb-willow') dedicatedM3uUrl = `${window.location.origin}/willow.m3u`;
+            else if (stream.id === 'sb-adult') dedicatedM3uUrl = `${window.location.origin}/adult.m3u`;
+            else {
+              // Generic fallback for custom streambox items
+              const groupSlug = (stream.group || 'Nexus').toLowerCase().replace(/[^a-z0-9]/g, '-');
+              dedicatedM3uUrl = `${window.location.origin}/playlist/group/${encodeURIComponent(stream.group || 'Nexus')}.m3u`;
+            }
 
             return (
               <div
@@ -236,15 +250,18 @@ export const NexusEmpireTab: React.FC<NexusEmpireTabProps> = ({
                           src={stream.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547'}
                           alt={stream.title}
                           className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLElement).src = 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547';
+                          }}
                         />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-white">{stream.title}</h4>
+                        <h4 className="text-xs font-extrabold text-white uppercase tracking-tight">{stream.title}</h4>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
                             {stream.group || 'Nexus VIP'}
                           </span>
-                          <span className="text-[10px] font-mono text-cyan-400">
+                          <span className="text-[9px] font-bold text-cyan-400 uppercase">
                             AniTV Ready
                           </span>
                         </div>
@@ -255,34 +272,61 @@ export const NexusEmpireTab: React.FC<NexusEmpireTabProps> = ({
                     <button
                       onClick={() => handleLaunchInAniTV(stream.url)}
                       title="Launch protocol in AniTV / Streambox"
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gradient-to-r from-amber-500/20 to-cyan-500/20 hover:from-amber-500/40 hover:to-cyan-500/40 border border-amber-500/40 text-amber-200 transition-all flex items-center gap-1.5"
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500/20 to-cyan-500/20 hover:from-amber-500/40 hover:to-cyan-500/40 border border-amber-500/40 text-amber-200 transition-all flex items-center gap-1.5 shadow-sm shadow-black"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                       <span>Launch AniTV</span>
                     </button>
                   </div>
 
-                  {/* Hash Pill */}
-                  <div className="mt-3 p-2 rounded-lg bg-black/60 border border-white/5 flex items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Key className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                      <span className="font-mono text-[11px] text-gray-300 truncate">
-                        {stream.url}
-                      </span>
+                  {/* Stream Description / Notes */}
+                  {stream.notes && (
+                    <p className="mt-3 text-[11px] text-gray-300 leading-relaxed italic border-l-2 border-amber-500/40 pl-2">
+                      {stream.notes}
+                    </p>
+                  )}
+
+                  {/* Hash / Protocol URL Pill */}
+                  <div className="mt-4 space-y-2">
+                    <div className="p-2 rounded-lg bg-black/70 border border-white/5 flex items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Key className="w-3.5 h-3.5 text-amber-400/70 shrink-0" />
+                        <span className="font-mono text-[10px] text-gray-400 truncate">
+                          {stream.url}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleCopy(stream.url, stream.id)}
+                        className="text-gray-400 hover:text-white shrink-0 p-1 rounded hover:bg-white/10"
+                        title="Copy Protocol URL"
+                      >
+                        {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleCopy(stream.url, stream.id)}
-                      className="text-gray-400 hover:text-white shrink-0 p-1 rounded hover:bg-white/10"
-                      title="Copy URL"
-                    >
-                      {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
+
+                    {/* Dedicated M3U Endpoint Pill */}
+                    <div className="p-2 rounded-lg bg-cyan-950/30 border border-cyan-500/20 flex items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Share2 className="w-3.5 h-3.5 text-cyan-400/70 shrink-0" />
+                        <span className="font-mono text-[10px] text-cyan-200 truncate">
+                          {dedicatedM3uUrl}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleCopy(dedicatedM3uUrl, `m3u-${stream.id}`)}
+                        className="text-cyan-400 hover:text-white shrink-0 p-1 rounded hover:bg-white/10"
+                        title="Copy Dedicated M3U URL"
+                      >
+                        {isM3uCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Verification Status Feedback */}
                   {statusMsg && (
-                    <div className="mt-2 text-[11px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 px-2 py-1 rounded">
-                      ✓ {statusMsg}
+                    <div className="mt-2 text-[10px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 px-2 py-1 rounded flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3" />
+                      <span>{statusMsg}</span>
                     </div>
                   )}
                 </div>
@@ -291,16 +335,16 @@ export const NexusEmpireTab: React.FC<NexusEmpireTabProps> = ({
                 <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
                   <button
                     onClick={() => handleTestResolve(stream)}
-                    className="text-cyan-400 hover:text-cyan-300 font-medium text-[11px] flex items-center gap-1 hover:underline"
+                    className="text-cyan-400 hover:text-cyan-300 font-bold text-[10px] flex items-center gap-1.5 hover:underline uppercase tracking-wider"
                   >
-                    <Sparkles className="w-3.5 h-3.5" /> Verify Hash & Protocol
+                    <RefreshCw className="w-3 h-3" /> Verify Protocol
                   </button>
 
                   <div className="flex items-center gap-1.5">
                     {rebuildCategories.length > 0 && (
                       <button
                         onClick={() => onAddToRebuild(rebuildCategories[0].id, stream.id)}
-                        className="px-2 py-1 rounded text-[11px] bg-purple-500/20 hover:bg-purple-500/40 text-purple-200 border border-purple-500/30 transition-colors"
+                        className="px-2 py-1 rounded text-[10px] bg-purple-500/20 hover:bg-purple-500/40 text-purple-200 border border-purple-500/30 transition-colors font-bold uppercase"
                         title="Add to Rebuild Category"
                       >
                         + Rebuild
@@ -308,14 +352,14 @@ export const NexusEmpireTab: React.FC<NexusEmpireTabProps> = ({
                     )}
                     <button
                       onClick={() => onEditStream(stream)}
-                      className="p-1 rounded text-gray-400 hover:text-white"
+                      className="p-1.5 rounded bg-black/40 hover:bg-black/80 text-gray-400 hover:text-white border border-white/10 transition-colors"
                       title="Edit Stream"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onDeleteStream(stream.id)}
-                      className="p-1 rounded text-gray-400 hover:text-rose-400"
+                      className="p-1.5 rounded bg-black/40 hover:bg-rose-950/60 text-gray-400 hover:text-rose-400 border border-white/10 transition-colors"
                       title="Delete Stream"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

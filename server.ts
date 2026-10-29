@@ -228,87 +228,121 @@ let playlistSources: PlaylistSource[] = [
     status: 'idle',
     autoRefresh: true,
   },
+  {
+    id: 'src-cncverse',
+    name: 'CNCVerse Bridge (Sports)',
+    slug: 'cncverse',
+    url: 'https://cncverse.dpdns.org/all.m3u',
+    type: 'm3u',
+    category: 'events',
+    channelCount: 0,
+    status: 'idle',
+    autoRefresh: true,
+  },
 ];
 
 // Initial Streambox Channels (AniTV / Streambox compatible)
 const INITIAL_STREAMBOX_CHANNELS: ChannelStream[] = [
   {
-    id: 'sb-1',
-    title: 'Nexus Streambox Stream 1 [AniTV Live]',
-    url: 'streambox://open/255cfab9f98da87dab11a6e0a337279e',
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
-    group: 'Nexus Empire VIP',
-    tvgId: 'streambox.nexus.1',
-    tvgName: 'Nexus Streambox 1',
-    sourceId: 'src-streambox',
-    sourceName: 'Nexus Empire Streambox Vault',
-    status: 'active',
-    serverSignature: 'streambox',
-    addedAt: Date.now(),
-  },
-  {
-    id: 'sb-2',
-    title: 'Nexus Streambox Stream 2 [AniTV Cinema]',
-    url: 'streambox://open/dbd3d88df5fe1594d5d64afb3b6704be',
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
-    group: 'Nexus Empire Cinema',
-    tvgId: 'streambox.nexus.2',
-    tvgName: 'Nexus Streambox 2',
-    sourceId: 'src-streambox',
-    sourceName: 'Nexus Empire Streambox Vault',
-    status: 'active',
-    serverSignature: 'streambox',
-    addedAt: Date.now(),
-  },
-  {
-    id: 'sb-3',
-    title: 'Nexus Streambox Stream 3 [AniTV Ultra]',
-    url: 'streambox://open/4397be6aa83e687053eeb1f55b4f9f48',
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
-    group: 'Nexus Empire Sports',
-    tvgId: 'streambox.nexus.3',
-    tvgName: 'Nexus Streambox 3',
-    sourceId: 'src-streambox',
-    sourceName: 'Nexus Empire Streambox Vault',
-    status: 'active',
-    serverSignature: 'streambox',
-    addedAt: Date.now(),
-  },
-  {
-    id: 'sb-4',
-    title: 'Nexus Streambox Stream 4 [AniTV Max]',
-    url: 'streambox://open/188140cf39bd8728cfa2f19290218e2b',
-    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
-    group: 'Nexus Empire VIP',
-    tvgId: 'streambox.nexus.4',
-    tvgName: 'Nexus Streambox 4',
-    sourceId: 'src-streambox',
-    sourceName: 'Nexus Empire Streambox Vault',
-    status: 'active',
-    serverSignature: 'streambox',
-    addedAt: Date.now(),
-  },
-  {
-    id: 'sb-5',
-    title: 'Nexus Streambox Stream 5 [AniTV Prime]',
+    id: 'sb-all-include',
+    title: 'All Channel Include',
     url: 'streambox://open/8003bfd97ec3d87c8df2280494c3aa26',
     logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
-    group: 'Nexus Empire Prime',
-    tvgId: 'streambox.nexus.5',
-    tvgName: 'Nexus Streambox 5',
+    group: 'Nexus Empire VIP',
+    tvgId: 'nexus.all.include',
+    tvgName: 'All Channel Include',
     sourceId: 'src-streambox',
     sourceName: 'Nexus Empire Streambox Vault',
     status: 'active',
     serverSignature: 'streambox',
     addedAt: Date.now(),
+    notes: 'Premium VIP network inclusion including Zee Cinema, Zee TV HD, and regional network streams.',
+  },
+  {
+    id: 'sb-all-tv',
+    title: 'All TV Channels',
+    url: 'streambox://open/188140cf39bd8728cfa2f19290218e2b',
+    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
+    group: 'Nexus Empire TV',
+    tvgId: 'nexus.all.tv',
+    tvgName: 'All TV Channels',
+    sourceId: 'src-streambox',
+    sourceName: 'Nexus Empire Streambox Vault',
+    status: 'active',
+    serverSignature: 'streambox',
+    addedAt: Date.now(),
+    notes: 'Master directory of all live TV channels synchronized for AniTV & StreamBox.',
+  },
+  {
+    id: 'sb-sony',
+    title: 'Sony Network All',
+    url: 'streambox://open/4397be6aa83e687053eeb1f55b4f9f48',
+    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
+    group: 'Nexus Empire Sony',
+    tvgId: 'nexus.sony.all',
+    tvgName: 'Sony Network All',
+    sourceId: 'src-streambox',
+    sourceName: 'Nexus Empire Streambox Vault',
+    status: 'active',
+    serverSignature: 'streambox',
+    addedAt: Date.now(),
+    notes: 'Complete Sony Ten 1/2/3/4/5 HD, Sony BBC Earth, Sony SAB, and Sony MAX HD network.',
+  },
+  {
+    id: 'sb-all-match',
+    title: 'All Match Events',
+    url: 'streambox://open/dbd3d88df5fe1594d5d64afb3b6704be',
+    logo: 'https://i.postimg.cc/bw0XwT8D/Jio-Hotstar-OG.png',
+    group: 'Nexus Empire Sports',
+    tvgId: 'nexus.all.match',
+    tvgName: 'All Match Events',
+    sourceId: 'src-streambox',
+    sourceName: 'Nexus Empire Streambox Vault',
+    status: 'active',
+    serverSignature: 'streambox',
+    addedAt: Date.now(),
+    notes: 'Live Cricket, Football, Tennis, and pop-up tournament event feeds.',
+  },
+  {
+    id: 'sb-willow',
+    title: 'Willow TV Channel',
+    url: 'streambox://open/255cfab9f98da87dab11a6e0a337279e',
+    logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ32BfOcij5y0NkYztgiMZ3AFXmBjXlAIYiuKm2U49BBLqpI4ZWuR92-LA&s=10',
+    group: 'Nexus Empire Sports',
+    tvgId: 'nexus.willow.tv',
+    tvgName: 'Willow TV Channel',
+    sourceId: 'src-streambox',
+    sourceName: 'Nexus Empire Streambox Vault',
+    status: 'active',
+    serverSignature: 'streambox',
+    addedAt: Date.now(),
+    notes: '24/7 dedicated Willow TV Cricket broadcast for AniTV & StreamBox.',
+  },
+  {
+    id: 'sb-adult',
+    title: '🔞18+ Premium Quality Content 🌚',
+    url: 'streambox://open/d45fee7c264f4c64e29a1c5162d8ad8e',
+    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
+    group: 'Nexus Empire 18+',
+    tvgId: 'nexus.adult.18',
+    tvgName: '18+ Premium Content',
+    sourceId: 'src-streambox',
+    sourceName: 'Nexus Empire Streambox Vault',
+    status: 'active',
+    serverSignature: 'streambox',
+    addedAt: Date.now(),
+    notes: 'Working Only Apk Version 4.0.0. Premium quality adult content feeds.',
   },
 ];
 
 // In-Memory Storage
 let channelDatabase: ChannelStream[] = [...INITIAL_STREAMBOX_CHANNELS];
 let rebuildCategories: RebuildCategory[] = [
-  { id: 'cat-1', name: '👑 Nexus VIP & Sports', slug: 'vip-sports', order: 1, channelIds: ['sb-1', 'sb-3'] },
-  { id: 'cat-2', name: '🎬 Nexus Cinema & Entertainment', slug: 'cinema', order: 2, channelIds: ['sb-2', 'sb-4', 'sb-5'] },
+  { id: 'cat-vip', name: '👑 Nexus Empire VIP', slug: 'nexus-vip', order: 1, channelIds: ['sb-all-include'] },
+  { id: 'cat-tv', name: '📺 Nexus Empire TV', slug: 'nexus-tv', order: 2, channelIds: ['sb-all-tv'] },
+  { id: 'cat-sony', name: '🎮 Nexus Empire Sony', slug: 'nexus-sony', order: 3, channelIds: ['sb-sony'] },
+  { id: 'cat-sports', name: '⚽ Nexus Empire Sports', slug: 'nexus-sports', order: 4, channelIds: ['sb-all-match', 'sb-willow'] },
+  { id: 'cat-18', name: '🔞 Nexus Empire 18+', slug: 'nexus-adult', order: 5, channelIds: ['sb-adult'] },
 ];
 
 // CloudStream, SkyStream, Stremio state loaded from data directory
@@ -1111,13 +1145,45 @@ app.get(['/all.m3u', '/all.m3u8', '/combined.m3u', '/combined.m3u8', '/api/playl
   serveM3UResponse(res, 'nexus_combined.m3u', activeChannels);
 });
 
-// 2. Streambox / AniTV Vault Endpoint
+// 2. Streambox / AniTV Vault Endpoint (Combined)
 app.get(['/nexus.m3u', '/nexus.m3u8', '/api/playlist/nexus-empire.m3u', '/api/playlist/nexus-empire.m3u8', '/api/aninexus/all.m3u'], (req, res) => {
   const streamboxChannels = channelDatabase.filter(
-    (c) => c.status !== 'trashed' && (c.sourceId === 'src-streambox' || c.url.startsWith('streambox://') || c.group?.toLowerCase().includes('nexus'))
+    (c) => c.status !== 'trashed' && (c.sourceId === 'src-streambox' || c.url.startsWith('streambox://') || (c.group && c.group.toLowerCase().includes('nexus')))
   );
   serveM3UResponse(res, 'nexus_empire_vault.m3u', streamboxChannels);
 });
+
+// 2a. Individual Nexus Category Endpoints
+app.get(['/willow.m3u', '/willow.m3u8'], (req, res) => {
+  const list = channelDatabase.filter(c => c.status !== 'trashed' && (c.title.toLowerCase().includes('willow') || c.id === 'sb-willow'));
+  serveM3UResponse(res, 'willow_cricket.m3u', list);
+});
+
+app.get(['/alltv.m3u', '/alltv.m3u8'], (req, res) => {
+  const list = channelDatabase.filter(c => c.status !== 'trashed' && (c.id === 'sb-all-tv'));
+  serveM3UResponse(res, 'all_tv_channels.m3u', list);
+});
+
+app.get(['/sonynetwork.m3u', '/sonynetwork.m3u8'], (req, res) => {
+  const list = channelDatabase.filter(c => c.status !== 'trashed' && (c.title.toLowerCase().includes('sony') || c.id === 'sb-sony'));
+  serveM3UResponse(res, 'sony_network.m3u', list);
+});
+
+app.get(['/matchevents.m3u', '/matchevents.m3u8'], (req, res) => {
+  const list = channelDatabase.filter(c => c.status !== 'trashed' && (c.title.toLowerCase().includes('match') || c.id === 'sb-all-match'));
+  serveM3UResponse(res, 'match_events.m3u', list);
+});
+
+app.get(['/adult.m3u', '/adult.m3u8', '/18plus.m3u', '/18plus.m3u8'], (req, res) => {
+  const list = channelDatabase.filter(c => c.status !== 'trashed' && (c.group?.includes('18+') || c.id === 'sb-adult'));
+  serveM3UResponse(res, 'adult_content.m3u', list);
+});
+
+app.get(['/allinclude.m3u', '/allinclude.m3u8'], (req, res) => {
+  const list = channelDatabase.filter(c => c.status !== 'trashed' && (c.id === 'sb-all-include'));
+  serveM3UResponse(res, 'all_include.m3u', list);
+});
+
 
 // 3. Fancode Live Sports Endpoint
 app.get(['/fancode.m3u', '/fancode.m3u8', '/api/playlist/fancode.m3u', '/api/playlist/fancode.m3u8'], (req, res) => {
@@ -1171,6 +1237,13 @@ app.get(['/skystream.m3u', '/skystream.m3u8', '/api/skystream.m3u'], (req, res) 
   }));
   serveM3UResponse(res, 'nexus_skystream.m3u', skyChannels);
 });
+
+// 7a. CNCVerse M3U Endpoint
+app.get(['/cncverse.m3u', '/cncverse.m3u8'], (req, res) => {
+  const cncChannels = channelDatabase.filter(c => c.sourceId === 'src-cncverse' && c.status !== 'trashed');
+  serveM3UResponse(res, 'nexus_cncverse.m3u', cncChannels);
+});
+
 
 // 8. Rebuild Custom Playlist Endpoint (Global & by category slug)
 app.get(['/rebuild.m3u', '/rebuild.m3u8', '/api/playlist/rebuild.m3u', '/api/playlist/rebuild.m3u8'], (req, res) => {
