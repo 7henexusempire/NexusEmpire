@@ -12,20 +12,35 @@ import {
   Clock,
   ExternalLink,
   Radio,
+  Folder,
+  Settings,
+  Globe,
 } from 'lucide-react';
 
-export type TabKey = 'global' | 'nexus' | 'events' | 'rebuild' | 'dedup' | 'generator';
+export type TabKey =
+  | 'global'
+  | 'nexus'
+  | 'events'
+  | 'rebuild'
+  | 'groups'
+  | 'cloudstream'
+  | 'skystream'
+  | 'dedup'
+  | 'generator';
 
 interface NavbarProps {
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
   totalChannels: number;
   totalSources: number;
+  domain: string;
+  publicBaseUrl: string;
   nextScheduledFetch: number;
   isFetching: boolean;
   onFetchAll: () => void;
   onOpenAddSource: () => void;
   onOpenAddStream: () => void;
+  onOpenSettings: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -33,11 +48,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   onTabChange,
   totalChannels,
   totalSources,
+  domain,
+  publicBaseUrl,
   nextScheduledFetch,
   isFetching,
   onFetchAll,
   onOpenAddSource,
   onOpenAddStream,
+  onOpenSettings,
 }) => {
   const [countdownText, setCountdownText] = useState('15:00');
 
@@ -60,6 +78,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     { key: 'nexus', label: 'Nexus Empire (Streambox / AniTV)', ariaLabel: 'Tab Nexus Empire', icon: <Radio className="w-4 h-4 text-amber-400" />, badge: 'VIP' },
     { key: 'events', label: 'Fancode & Sony & Zee5', ariaLabel: 'Tab Live Events', icon: <Calendar className="w-4 h-4 text-cyan-400" />, badge: 'LIVE' },
     { key: 'rebuild', label: 'Nexus Rebuild', ariaLabel: 'Tab Nexus Rebuild', icon: <Wrench className="w-4 h-4 text-purple-400" />, badge: 'Studio' },
+    { key: 'groups', label: 'Categories & Group Logos', ariaLabel: 'Tab Group Manager', icon: <Folder className="w-4 h-4 text-yellow-400" /> },
+    { key: 'cloudstream', label: 'CloudStream Extensions', ariaLabel: 'Tab CloudStream', icon: <Layers className="w-4 h-4 text-blue-400" />, badge: '48+' },
+    { key: 'skystream', label: 'SkyStream & Stremio', ariaLabel: 'Tab SkyStream', icon: <Radio className="w-4 h-4 text-pink-400" /> },
     { key: 'dedup', label: 'AI Deduplication & Trash', ariaLabel: 'Tab AI Deduplication', icon: <Trash2 className="w-4 h-4 text-rose-400" /> },
     { key: 'generator', label: 'M3U Generator & Endpoints', ariaLabel: 'Tab M3U Generator', icon: <Share2 className="w-4 h-4 text-emerald-400" /> },
   ];
@@ -86,8 +107,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <h1 className="font-extrabold text-lg tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-cyan-400">
                   NEXUS EMPIRE
                 </h1>
-                <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  v2.5 VPS Ready
+                <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  {domain}
                 </span>
               </div>
               <p className="text-xs text-gray-400">Stream Fetcher • Aggregator • Rebuilder</p>
@@ -154,6 +175,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Plus className="w-3.5 h-3.5 text-purple-400" />
             <span>Add Stream</span>
           </button>
+
+          {/* Settings Modal Button */}
+          <button
+            onClick={onOpenSettings}
+            title="Configure Domain, Port 8443, and System Settings"
+            className="p-1.5 rounded-lg text-xs font-medium bg-black/60 hover:bg-black/80 border border-white/20 text-gray-300 hover:text-white transition-colors"
+          >
+            <Settings className="w-4 h-4 text-cyan-300" />
+          </button>
         </div>
       </div>
 
@@ -167,7 +197,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label={item.ariaLabel}
               data-testid={`tab-${item.key}`}
               onClick={() => onTabChange(item.key)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                 isActive
                   ? 'bg-white/15 text-white border border-amber-400/50 shadow-[0_0_15px_rgba(251,191,36,0.15)] font-semibold'
                   : 'text-gray-400 hover:text-gray-200 hover:bg-white/5 border border-transparent'

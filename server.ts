@@ -1,11 +1,20 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
-import { ChannelStream, PlaylistSource, RebuildCategory, DuplicateCluster } from './src/types/playlist';
+import {
+  ChannelStream,
+  PlaylistSource,
+  RebuildCategory,
+  DuplicateCluster,
+  AppSettings,
+  CloudStreamItem,
+  SkyStreamItem,
+  StremioAddon,
+} from './src/types/playlist';
 import { parseM3U, parseEventJSON, buildM3U } from './src/utils/m3uParser';
 import { detectDuplicates } from './src/utils/duplicateDetector';
 
@@ -13,19 +22,56 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '60mb' }));
+app.use(express.urlencoded({ extended: true, limit: '60mb' }));
 
-// Initial Default Sources
+// App Settings with user domain thenexusempire.com and port 8443 stripping
+let appSettings: AppSettings = {
+  domain: 'thenexusempire.com',
+  port: 8443,
+  hidePort: true, // Hide port 8443 so M3U URLs use clean https://thenexusempire.com/...
+  publicBaseUrl: 'https://thenexusempire.com',
+  customTvgUrl: 'https://thenexusempire.com/epg.xml',
+  syncIntervalMinutes: 15,
+  autoSync: true,
+  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 TiviMate/4.7.0',
+};
+
+// Helper to determine the public base URL
+export function getPublicBaseUrl(req?: Request): string {
+  if (appSettings.publicBaseUrl && appSettings.publicBaseUrl.trim()) {
+    return appSettings.publicBaseUrl.trim().replace(/\/+$/, '');
+  }
+
+  if (req) {
+    const forwardedProto = (req.headers['x-forwarded-proto'] as string) || 'https';
+    let host = (req.headers['x-forwarded-host'] as string) || req.headers.host || appSettings.domain;
+
+    if (appSettings.hidePort) {
+      // Remove any :8443 or :3000 port suffix so it matches clean domain
+      host = host.split(':')[0];
+    }
+    return `${forwardedProto}://${host}`;
+  }
+
+  return `https://${appSettings.domain}`;
+}
+
+// Initial Default Sources including SunNXT / StreamX from old repo
 let playlistSources: PlaylistSource[] = [
   {
     id: 'src-1',
     name: 'TiviMate Cloudflare Hub',
+    slug: 'tivimate',
     url: 'https://hjh-545.pages.dev/',
     type: 'm3u',
     category: 'global',
@@ -36,6 +82,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-2',
     name: 'Plug VIP Playlist',
+    slug: 'plugx',
     url: 'https://plugxvipplaylist.lovable.app/api/playlist',
     type: 'm3u',
     category: 'global',
@@ -46,6 +93,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-3',
     name: 'StalkMax Workers M3U',
+    slug: 'stalkmax',
     url: 'https://stalkmax.7henexusempire.workers.dev/playlist.m3u?pass=Nexus07',
     type: 'm3u',
     category: 'global',
@@ -56,6 +104,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-4',
     name: 'P1 Stalk Workers M3U',
+    slug: 'p1stalk',
     url: 'https://p1stalk.7henexusempire.workers.dev/playlist.m3u?pass=Nexus07',
     type: 'm3u',
     category: 'global',
@@ -66,6 +115,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-5',
     name: 'Server LRL45 Raw',
+    slug: 'server-lrl45',
     url: 'https://server.lrl45.workers.dev/channel/raw?=m3u',
     type: 'm3u',
     category: 'global',
@@ -76,7 +126,19 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-6',
     name: 'P1 Stalk PHP Streamer',
+    slug: 'p1php',
     url: 'https://p1stalk.7henexusempire.workers.dev/playlist.php?pass=Nexus07',
+    type: 'm3u',
+    category: 'global',
+    channelCount: 0,
+    status: 'idle',
+    autoRefresh: true,
+  },
+  {
+    id: 'src-zeotv',
+    name: 'SunNXT & StreamX Live',
+    slug: 'zeotv',
+    url: 'https://zeotvyash.streamxlivenow.workers.dev/',
     type: 'm3u',
     category: 'global',
     channelCount: 0,
@@ -87,6 +149,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-streambox',
     name: 'Nexus Empire Streambox Vault',
+    slug: 'nexus-vault',
     url: 'streambox://vault',
     type: 'streambox',
     category: 'nexus',
@@ -98,6 +161,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-fancode-m3u',
     name: 'Fancode Live M3U',
+    slug: 'fancode-live',
     url: 'https://raw.githubusercontent.com/doctor-8trange/zyphx8/refs/heads/main/data/fancode.m3u',
     backupUrl: 'https://raw.githubusercontent.com/drmlive/fancode-live-events/refs/heads/main/fancode.json',
     type: 'm3u',
@@ -109,6 +173,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-fancode-json',
     name: 'Fancode Events JSON',
+    slug: 'fancode-events',
     url: 'https://raw.githubusercontent.com/doctor-8trange/zyphx8/refs/heads/main/data/fancode.json',
     backupUrl: 'https://raw.githubusercontent.com/drmlive/fancode-live-events/refs/heads/main/fancode.json',
     type: 'json',
@@ -120,6 +185,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-sony-m3u',
     name: 'SonyLIV Live M3U',
+    slug: 'sony-live',
     url: 'https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u',
     backupUrl: 'https://raw.githubusercontent.com/drmlive/sliv-live-events/refs/heads/main/sonyliv.m3u',
     type: 'm3u',
@@ -131,6 +197,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-sony-json',
     name: 'SonyLIV Events JSON',
+    slug: 'sony-events',
     url: 'https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.json',
     backupUrl: 'https://raw.githubusercontent.com/drmlive/sliv-live-events/refs/heads/main/sonyliv.json',
     type: 'json',
@@ -142,6 +209,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-zee5-m3u',
     name: 'Zee5 Live M3U',
+    slug: 'zee5-live',
     url: 'https://raw.githubusercontent.com/doctor-8trange/quarnex/refs/heads/main/data/zee5.m3u',
     type: 'm3u',
     category: 'events',
@@ -152,6 +220,7 @@ let playlistSources: PlaylistSource[] = [
   {
     id: 'src-zee5-json',
     name: 'Zee5 Events JSON',
+    slug: 'zee5-events',
     url: 'https://raw.githubusercontent.com/doctor-8trange/quarnex/refs/heads/main/data/zee5.json',
     type: 'json',
     category: 'events',
@@ -238,9 +307,73 @@ const INITIAL_STREAMBOX_CHANNELS: ChannelStream[] = [
 // In-Memory Storage
 let channelDatabase: ChannelStream[] = [...INITIAL_STREAMBOX_CHANNELS];
 let rebuildCategories: RebuildCategory[] = [
-  { id: 'cat-1', name: '👑 Nexus VIP & Sports', order: 1, channelIds: ['sb-1', 'sb-3'] },
-  { id: 'cat-2', name: '🎬 Nexus Cinema & Entertainment', order: 2, channelIds: ['sb-2', 'sb-4', 'sb-5'] },
+  { id: 'cat-1', name: '👑 Nexus VIP & Sports', slug: 'vip-sports', order: 1, channelIds: ['sb-1', 'sb-3'] },
+  { id: 'cat-2', name: '🎬 Nexus Cinema & Entertainment', slug: 'cinema', order: 2, channelIds: ['sb-2', 'sb-4', 'sb-5'] },
 ];
+
+// CloudStream, SkyStream, Stremio state loaded from data directory
+let cloudstreamItems: CloudStreamItem[] = [];
+let skystreamItems: SkyStreamItem[] = [];
+let stremioAddons: StremioAddon[] = [
+  {
+    id: 'cinemeta',
+    name: 'Cinemeta (Official)',
+    version: '3.0.12',
+    description: 'Official Stremio & Nuvio catalog metadata for Movies, TV Series and Anime',
+    manifestUrl: 'https://v3-cinemeta.strem.io/manifest.json',
+    logo: 'https://images.metahub.space/logo/medium/cinemeta.png',
+    types: ['movie', 'series', 'anime'],
+    enabled: true,
+  },
+  {
+    id: 'opensubtitles',
+    name: 'OpenSubtitles v3',
+    version: '1.0.0',
+    description: 'Official multi-language subtitles for movies and TV shows',
+    manifestUrl: 'https://opensubtitles-v3.strem.io/manifest.json',
+    logo: 'https://images.metahub.space/logo/medium/opensubtitles.png',
+    types: ['movie', 'series'],
+    enabled: true,
+  },
+  {
+    id: 'torrentio',
+    name: 'Torrentio Lite',
+    version: '1.0.14',
+    description: 'Streams torrents from multiple providers with debrid integration',
+    manifestUrl: 'https://torrentio.strem.fun/manifest.json',
+    logo: 'https://torrentio.strem.fun/logo.png',
+    types: ['movie', 'series'],
+    enabled: true,
+  },
+];
+
+// Load catalog data if available
+try {
+  const csPath = path.join(DATA_DIR, 'cloudstream-repos.json');
+  if (fs.existsSync(csPath)) {
+    const csData = JSON.parse(fs.readFileSync(csPath, 'utf8'));
+    if (csData.items) cloudstreamItems = csData.items;
+  }
+
+  const skyPath = path.join(DATA_DIR, 'skystream-extensions.json');
+  if (fs.existsSync(skyPath)) {
+    const skyData = JSON.parse(fs.readFileSync(skyPath, 'utf8'));
+    if (skyData.repos) {
+      skystreamItems = skyData.repos.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        version: r.rawPayload?.version ? String(r.rawPayload.version) : '1.0',
+        author: r.rawPayload?.authors?.[0] || 'SkyStream Developer',
+        description: r.description || 'SkyStream extension module',
+        url: r.url,
+        category: r.rawPayload?.categories?.[0] || 'General',
+        enabled: true,
+      }));
+    }
+  }
+} catch (e) {
+  console.warn('Could not load catalog data:', e);
+}
 
 let lastGlobalFetchTimestamp = Date.now();
 const AUTO_FETCH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
@@ -256,7 +389,7 @@ async function fetchRemoteData(url: string, headers?: Record<string, string>): P
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 TiviMate/4.7.0',
+        'User-Agent': appSettings.userAgent,
         'Accept': '*/*',
         ...(headers || {}),
       },
@@ -317,13 +450,11 @@ async function fetchSource(source: PlaylistSource): Promise<ChannelStream[]> {
 
   let parsedChannels: ChannelStream[] = [];
 
-  // If content is JSON or source is marked JSON
   if (source.type === 'json' || raw.trim().startsWith('{') || raw.trim().startsWith('[')) {
     try {
       const parsedJson = JSON.parse(raw);
       parsedChannels = parseEventJSON(parsedJson, source.id, source.name);
     } catch {
-      // fallback to M3U parser if json parsing fails
       parsedChannels = parseM3U(raw, source.id, source.name);
     }
   } else {
@@ -340,9 +471,8 @@ async function refreshAllSources() {
   isFetchingActive = true;
 
   try {
-    console.log('[Nexus Fetcher] Starting fast parallel auto-fetch for all sources...');
+    console.log('[Nexus Fetcher] Starting parallel auto-fetch for all sources...');
     
-    // Fetch non-streambox active sources in parallel
     const activeSources = playlistSources.filter((s) => s.type !== 'streambox' && s.autoRefresh);
     activeSources.forEach((s) => {
       s.status = 'fetching';
@@ -361,7 +491,6 @@ async function refreshAllSources() {
       })
     );
 
-    // Reconstruct channel database with Streambox streams + custom streams + newly fetched channels
     const newDatabase: ChannelStream[] = [...INITIAL_STREAMBOX_CHANNELS];
 
     for (const res of results) {
@@ -370,11 +499,9 @@ async function refreshAllSources() {
       }
     }
 
-    // Preserve custom streams added by user
     const customUserStreams = channelDatabase.filter((c) => c.sourceId === 'src-custom');
     newDatabase.push(...customUserStreams);
 
-    // Preserve trashed status from previous session
     const trashedUrls = new Set(
       channelDatabase.filter((c) => c.status === 'trashed').map((c) => c.url)
     );
@@ -398,42 +525,63 @@ setInterval(() => {
   refreshAllSources().catch((err) => console.error('[Nexus Fetcher] Cron Error:', err));
 }, AUTO_FETCH_INTERVAL_MS);
 
-// Initial bootstrap fetch in background
+// Initial bootstrap fetch
 setTimeout(() => {
-  refreshAllSources().catch((err) => console.error('[Nexus Fetcher] Initial Bootstrap Error:', err));
+  refreshAllSources().catch((err) => console.error('[Nexus Fetcher] Bootstrap Error:', err));
 }, 1000);
 
 // ======================== API ROUTES ======================== //
 
-// 1. System Status & Auto-fetch Info
+// 1. Status & Configuration
 app.get('/api/status', (req, res) => {
   res.json({
     appName: 'Nexus Empire',
     version: '2.5.0',
+    domain: appSettings.domain,
+    port: appSettings.port,
+    publicBaseUrl: getPublicBaseUrl(req),
+    hidePort: appSettings.hidePort,
     totalChannels: channelDatabase.filter((c) => c.status !== 'trashed').length,
     trashedChannels: channelDatabase.filter((c) => c.status === 'trashed').length,
     totalSources: playlistSources.length,
     lastGlobalFetch: lastGlobalFetchTimestamp,
     nextScheduledFetch: nextScheduledFetchTimestamp,
     isFetching: isFetchingActive,
-    autoFetchIntervalMinutes: 15,
+    autoFetchIntervalMinutes: appSettings.syncIntervalMinutes,
   });
 });
 
-// 2. Playlists Sources CRUD
+app.get('/api/settings', (req, res) => {
+  res.json(appSettings);
+});
+
+app.put('/api/settings', (req, res) => {
+  appSettings = {
+    ...appSettings,
+    ...req.body,
+  };
+  res.json(appSettings);
+});
+
+// 2. Playlists Sources CRUD (with custom slugs & rename)
 app.get('/api/playlists', (req, res) => {
   res.json(playlistSources);
 });
 
 app.post('/api/playlists', (req, res) => {
-  const { name, url, type, category, backupUrl, headers } = req.body;
+  const { name, url, slug, type, category, backupUrl, headers } = req.body;
   if (!name || !url) {
     return res.status(400).json({ error: 'Name and URL are required' });
   }
 
+  const generatedSlug = slug
+    ? slug.toLowerCase().replace(/[^a-z0-9_-]/g, '-')
+    : name.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+
   const newSource: PlaylistSource = {
     id: `src-${Date.now()}`,
     name,
+    slug: generatedSlug,
     url,
     backupUrl,
     type: type || 'm3u',
@@ -445,7 +593,6 @@ app.post('/api/playlists', (req, res) => {
   };
 
   playlistSources.push(newSource);
-  // Fetch immediately
   fetchSource(newSource)
     .then((channels) => {
       channelDatabase.push(...channels);
@@ -463,7 +610,7 @@ app.put('/api/playlists/:id', (req, res) => {
   playlistSources[index] = {
     ...playlistSources[index],
     ...req.body,
-    id, // protect id
+    id,
   };
 
   res.json(playlistSources[index]);
@@ -495,7 +642,6 @@ app.post('/api/playlists/:id/fetch', async (req, res) => {
   source.status = 'fetching';
   try {
     const channels = await fetchSource(source);
-    // Replace old channels for this source
     channelDatabase = channelDatabase.filter((c) => c.sourceId !== id).concat(channels);
     res.json({ success: true, source, channelCount: channels.length });
   } catch (err: any) {
@@ -505,8 +651,112 @@ app.post('/api/playlists/:id/fetch', async (req, res) => {
   }
 });
 
-// 3. Channels & Streams CRUD
+// 3. Category & Group Management (Rename, Bulk Logo, Remove Prefix, Toggle)
+app.get('/api/groups', (req, res) => {
+  const groupCounts = new Map<string, number>();
+  channelDatabase.forEach((ch) => {
+    if (ch.status !== 'trashed') {
+      const g = ch.customGroup || ch.group || 'General';
+      groupCounts.set(g, (groupCounts.get(g) || 0) + 1);
+    }
+  });
+
+  const list = Array.from(groupCounts.entries()).map(([name, count]) => ({
+    name,
+    count,
+    logo: channelDatabase.find((c) => (c.customGroup || c.group) === name)?.logo,
+  }));
+
+  res.json(list);
+});
+
+// Rename category across all streams
+app.post('/api/groups/rename', (req, res) => {
+  const { oldName, newName } = req.body;
+  if (!oldName || !newName) return res.status(400).json({ error: 'oldName and newName required' });
+
+  let updatedCount = 0;
+  channelDatabase.forEach((ch) => {
+    const currentG = ch.customGroup || ch.group;
+    if (currentG === oldName) {
+      ch.group = newName.trim();
+      ch.customGroup = newName.trim();
+      updatedCount++;
+    }
+  });
+
+  res.json({ success: true, updatedCount, oldName, newName });
+});
+
+// Bulk set logo for all streams in a category
+app.post('/api/groups/bulk-logo', (req, res) => {
+  const { groupName, logoUrl } = req.body;
+  if (!groupName || !logoUrl) return res.status(400).json({ error: 'groupName and logoUrl required' });
+
+  let updatedCount = 0;
+  channelDatabase.forEach((ch) => {
+    const currentG = ch.customGroup || ch.group;
+    if (currentG === groupName) {
+      ch.logo = logoUrl.trim();
+      ch.customLogo = logoUrl.trim();
+      updatedCount++;
+    }
+  });
+
+  res.json({ success: true, updatedCount, groupName, logoUrl });
+});
+
+// Strip category prefix (e.g. Jio TV+ | , [IN], HD -)
+app.post('/api/groups/remove-prefix', (req, res) => {
+  const { prefix } = req.body;
+  if (!prefix) return res.status(400).json({ error: 'prefix required' });
+
+  let updatedCount = 0;
+  channelDatabase.forEach((ch) => {
+    const currentG = ch.customGroup || ch.group || '';
+    if (currentG.startsWith(prefix)) {
+      const newG = currentG.substring(prefix.length).trim() || 'General';
+      ch.group = newG;
+      ch.customGroup = newG;
+      updatedCount++;
+    }
+  });
+
+  res.json({ success: true, updatedCount });
+});
+
+// Delete category (move channels to General or delete)
+app.post('/api/groups/delete', (req, res) => {
+  const { groupName, deleteChannels } = req.body;
+  if (!groupName) return res.status(400).json({ error: 'groupName required' });
+
+  let affectedCount = 0;
+  if (deleteChannels) {
+    channelDatabase = channelDatabase.filter((c) => (c.customGroup || c.group) !== groupName);
+  } else {
+    channelDatabase.forEach((c) => {
+      if ((c.customGroup || c.group) === groupName) {
+        c.group = 'General';
+        c.customGroup = 'General';
+        affectedCount++;
+      }
+    });
+  }
+
+  res.json({ success: true, affectedCount });
+});
+
+// 4. Channels & Streams CRUD
+app.get('/api/channels', (req, res) => {
+  // Alias for /api/streams
+  handleStreamsQuery(req, res);
+});
+
 app.get('/api/streams', (req, res) => {
+  handleStreamsQuery(req, res);
+});
+
+function handleStreamsQuery(req: Request, res: Response) {
   const { group, search, sourceId, status, limit, offset } = req.query;
 
   let filtered = [...channelDatabase];
@@ -514,7 +764,6 @@ app.get('/api/streams', (req, res) => {
   if (status) {
     filtered = filtered.filter((c) => c.status === status);
   } else {
-    // By default, exclude trashed streams unless specifically requested
     filtered = filtered.filter((c) => c.status !== 'trashed');
   }
 
@@ -523,22 +772,22 @@ app.get('/api/streams', (req, res) => {
   }
 
   if (group && group !== 'ALL') {
-    filtered = filtered.filter((c) => c.group === group);
+    filtered = filtered.filter((c) => (c.customGroup || c.group) === group);
   }
 
   if (search) {
     const q = String(search).toLowerCase();
     filtered = filtered.filter(
       (c) =>
-        c.title.toLowerCase().includes(q) ||
-        (c.group && c.group.toLowerCase().includes(q)) ||
-        (c.tvgName && c.tvgName.toLowerCase().includes(q)) ||
-        c.url.toLowerCase().includes(q)
+        (c.customName || c.title).toLowerCase().includes(q) ||
+        (c.customGroup || c.group || '').toLowerCase().includes(q) ||
+        (c.tvgName || c.tvgId || '').toLowerCase().includes(q) ||
+        (c.customUrl || c.url).toLowerCase().includes(q)
     );
   }
 
   const total = filtered.length;
-  const parsedLimit = limit ? parseInt(String(limit)) : 1000;
+  const parsedLimit = limit ? parseInt(String(limit)) : 5000;
   const parsedOffset = offset ? parseInt(String(offset)) : 0;
 
   const paginated = filtered.slice(parsedOffset, parsedOffset + parsedLimit);
@@ -549,7 +798,7 @@ app.get('/api/streams', (req, res) => {
     limit: parsedLimit,
     offset: parsedOffset,
   });
-});
+}
 
 // Update stream
 app.put('/api/streams/:id', (req, res) => {
@@ -568,7 +817,7 @@ app.put('/api/streams/:id', (req, res) => {
 
 // Add custom stream
 app.post('/api/streams', (req, res) => {
-  const { title, url, group, logo, tvgId, tvgName, headers } = req.body;
+  const { title, url, group, logo, tvgId, tvgName, chno, headers } = req.body;
   if (!title || !url) return res.status(400).json({ error: 'Title and URL are required' });
 
   const newChannel: ChannelStream = {
@@ -579,6 +828,7 @@ app.post('/api/streams', (req, res) => {
     logo,
     tvgId,
     tvgName: tvgName || title,
+    chno,
     sourceId: 'src-custom',
     sourceName: 'Nexus Custom Streams',
     headers,
@@ -590,7 +840,7 @@ app.post('/api/streams', (req, res) => {
   res.status(201).json(newChannel);
 });
 
-// Delete stream (or send to trash)
+// Delete stream (or move to trash)
 app.delete('/api/streams/:id', (req, res) => {
   const { id } = req.params;
   const permanent = req.query.permanent === 'true';
@@ -627,18 +877,23 @@ app.post('/api/trash/empty', (req, res) => {
   res.json({ success: true, removedCount: removed });
 });
 
-// 4. Rebuild Custom Playlists Endpoints
+// 5. Rebuild Custom Playlists Endpoints
 app.get('/api/rebuild/categories', (req, res) => {
   res.json(rebuildCategories);
 });
 
 app.post('/api/rebuild/categories', (req, res) => {
-  const { name } = req.body;
+  const { name, slug } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
+
+  const generatedSlug = slug
+    ? slug.toLowerCase().replace(/[^a-z0-9_-]/g, '-')
+    : name.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
 
   const newCat: RebuildCategory = {
     id: `cat-${Date.now()}`,
     name,
+    slug: generatedSlug,
     order: rebuildCategories.length + 1,
     channelIds: [],
   };
@@ -666,7 +921,6 @@ app.delete('/api/rebuild/categories/:id', (req, res) => {
   res.json({ success: true, message: 'Category removed' });
 });
 
-// Assign channel to rebuild category
 app.post('/api/rebuild/add-stream', (req, res) => {
   const { categoryId, channelId } = req.body;
   const cat = rebuildCategories.find((c) => c.id === categoryId);
@@ -687,17 +941,16 @@ app.post('/api/rebuild/remove-stream', (req, res) => {
   res.json(cat);
 });
 
-// 5. AI Deduplication & Trash System
+// 6. AI Deduplication
 app.post('/api/ai/deduplicate', async (req, res) => {
   try {
     const { useAiModel } = req.body;
     const baseResult = detectDuplicates(channelDatabase);
 
-    // If user requested AI verification and GEMINI_API_KEY is available
     if (useAiModel && process.env.GEMINI_API_KEY && baseResult.clusters.length > 0) {
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const sampleClusters = baseResult.clusters.slice(0, 8); // analyze top clusters
+        const sampleClusters = baseResult.clusters.slice(0, 8);
         const prompt = `You are an IPTV & streaming network engineer for Nexus Empire.
 Analyze these streaming channel duplicate clusters. Check if the streams are true duplicates or distinct server mirrors (alternate CDNs/backup servers).
 Clusters: ${JSON.stringify(sampleClusters, null, 2)}
@@ -733,7 +986,7 @@ Return a concise JSON object with:
           }
         }
       } catch (aiErr: any) {
-        console.warn('[AI Deduplication] Gemini fallback to local heuristics:', aiErr.message);
+        console.warn('[AI Deduplication] Gemini fallback:', aiErr.message);
       }
     }
 
@@ -743,7 +996,6 @@ Return a concise JSON object with:
   }
 });
 
-// Action to bulk quarantine / trash duplicates
 app.post('/api/ai/quarantine-duplicates', (req, res) => {
   const { duplicateIds } = req.body;
   if (!Array.isArray(duplicateIds)) {
@@ -761,55 +1013,146 @@ app.post('/api/ai/quarantine-duplicates', (req, res) => {
   res.json({ success: true, movedToTrash: movedCount });
 });
 
-// 6. Live Hosted M3U Generators
-function serveM3UResponse(res: express.Response, filename: string, channels: ChannelStream[]) {
-  const m3uContent = buildM3U(channels, filename.replace('.m3u', ''));
+// 7. CloudStream, SkyStream & Stremio Catalogs
+app.get('/api/cloudstream/items', (req, res) => {
+  res.json(cloudstreamItems);
+});
+
+app.get('/api/skystream/extensions', (req, res) => {
+  res.json(skystreamItems);
+});
+
+app.get('/api/stremio/addons', (req, res) => {
+  res.json(stremioAddons);
+});
+
+// 8. Full Backup Export & Import
+app.get('/api/backup/export', (req, res) => {
+  const backup = {
+    appName: 'Nexus Empire',
+    exportedAt: new Date().toISOString(),
+    settings: appSettings,
+    sources: playlistSources,
+    rebuildCategories,
+    customChannels: channelDatabase.filter((c) => c.sourceId === 'src-custom'),
+    overrides: channelDatabase
+      .filter((c) => c.customName || c.customGroup || c.customLogo || c.customUrl)
+      .map((c) => ({
+        id: c.id,
+        url: c.url,
+        customName: c.customName,
+        customGroup: c.customGroup,
+        customLogo: c.customLogo,
+        customUrl: c.customUrl,
+      })),
+  };
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="nexus_empire_backup.json"');
+  res.send(JSON.stringify(backup, null, 2));
+});
+
+app.post('/api/backup/import', (req, res) => {
+  try {
+    const data = req.body;
+    if (data.settings) appSettings = { ...appSettings, ...data.settings };
+    if (data.sources && Array.isArray(data.sources)) playlistSources = data.sources;
+    if (data.rebuildCategories && Array.isArray(data.rebuildCategories)) rebuildCategories = data.rebuildCategories;
+
+    res.json({ success: true, message: 'Backup restored successfully' });
+  } catch (err: any) {
+    res.status(400).json({ error: 'Invalid backup file', details: err.message });
+  }
+});
+
+// ======================== LIVE HOSTED M3U ENDPOINTS ======================== //
+
+function serveM3UResponse(res: Response, filename: string, channels: ChannelStream[]) {
+  // Apply any custom channel overrides
+  const mappedChannels = channels.map((c) => ({
+    ...c,
+    title: c.customName || c.title,
+    group: c.customGroup || c.group,
+    logo: c.customLogo || c.logo,
+    url: c.customUrl || c.url,
+  }));
+
+  const m3uContent = buildM3U(mappedChannels, filename.replace(/\.(m3u8?)$/, ''));
   res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
   res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.send(m3uContent);
 }
 
-// Combined M3U endpoint
-app.get(['/api/playlist/combined.m3u', '/api/playlist/combined.m3u8'], (req, res) => {
+// 1. Combined All Channels Endpoint
+app.get(['/all.m3u', '/all.m3u8', '/combined.m3u', '/combined.m3u8', '/api/playlist/combined.m3u', '/api/playlist/combined.m3u8'], (req, res) => {
   const activeChannels = channelDatabase.filter((c) => c.status !== 'trashed');
   serveM3UResponse(res, 'nexus_combined.m3u', activeChannels);
 });
 
-// Nexus Empire Streambox & AniTV special endpoint
-app.get(['/api/playlist/nexus-empire.m3u', '/api/playlist/nexus-empire.m3u8'], (req, res) => {
+// 2. Streambox / AniTV Vault Endpoint
+app.get(['/nexus.m3u', '/nexus.m3u8', '/api/playlist/nexus-empire.m3u', '/api/playlist/nexus-empire.m3u8', '/api/aninexus/all.m3u'], (req, res) => {
   const streamboxChannels = channelDatabase.filter(
     (c) => c.status !== 'trashed' && (c.sourceId === 'src-streambox' || c.url.startsWith('streambox://') || c.group?.toLowerCase().includes('nexus'))
   );
   serveM3UResponse(res, 'nexus_empire_vault.m3u', streamboxChannels);
 });
 
-// SonyLIV M3U
-app.get(['/api/playlist/sony.m3u', '/api/playlist/sony.m3u8'], (req, res) => {
-  const sonyChannels = channelDatabase.filter(
-    (c) => c.status !== 'trashed' && (c.sourceId.includes('sony') || c.title.toLowerCase().includes('sony'))
-  );
-  serveM3UResponse(res, 'nexus_sonyliv.m3u', sonyChannels);
-});
-
-// Fancode M3U
-app.get(['/api/playlist/fancode.m3u', '/api/playlist/fancode.m3u8'], (req, res) => {
+// 3. Fancode Live Sports Endpoint
+app.get(['/fancode.m3u', '/fancode.m3u8', '/api/playlist/fancode.m3u', '/api/playlist/fancode.m3u8'], (req, res) => {
   const fancodeChannels = channelDatabase.filter(
     (c) => c.status !== 'trashed' && (c.sourceId.includes('fancode') || c.title.toLowerCase().includes('fancode'))
   );
   serveM3UResponse(res, 'nexus_fancode.m3u', fancodeChannels);
 });
 
-// Zee5 M3U
-app.get(['/api/playlist/zee5.m3u', '/api/playlist/zee5.m3u8'], (req, res) => {
+// 4. SonyLIV Live Events Endpoint
+app.get(['/sony.m3u', '/sony.m3u8', '/api/playlist/sony.m3u', '/api/playlist/sony.m3u8'], (req, res) => {
+  const sonyChannels = channelDatabase.filter(
+    (c) => c.status !== 'trashed' && (c.sourceId.includes('sony') || c.title.toLowerCase().includes('sony'))
+  );
+  serveM3UResponse(res, 'nexus_sonyliv.m3u', sonyChannels);
+});
+
+// 5. Zee5 Live Endpoint
+app.get(['/zee5.m3u', '/zee5.m3u8', '/api/playlist/zee5.m3u', '/api/playlist/zee5.m3u8'], (req, res) => {
   const zeeChannels = channelDatabase.filter(
     (c) => c.status !== 'trashed' && (c.sourceId.includes('zee5') || c.title.toLowerCase().includes('zee'))
   );
   serveM3UResponse(res, 'nexus_zee5.m3u', zeeChannels);
 });
 
-// Rebuild custom playlist endpoint
-app.get(['/api/playlist/rebuild.m3u', '/api/playlist/rebuild.m3u8'], (req, res) => {
+// 6. CloudStream M3U Endpoint
+app.get(['/cloudstream.m3u', '/cloudstream.m3u8', '/api/cloudstream.m3u'], (req, res) => {
+  const csChannels: ChannelStream[] = cloudstreamItems.map((item, idx) => ({
+    id: `cs-${idx}`,
+    title: item.name,
+    url: item.url,
+    logo: item.logo,
+    group: item.category || 'CloudStream Extensions',
+    tvgId: item.internalName || item.id,
+    sourceId: 'src-cloudstream',
+    sourceName: 'CloudStream Extensions',
+  }));
+  serveM3UResponse(res, 'nexus_cloudstream.m3u', csChannels);
+});
+
+// 7. SkyStream M3U Endpoint
+app.get(['/skystream.m3u', '/skystream.m3u8', '/api/skystream.m3u'], (req, res) => {
+  const skyChannels: ChannelStream[] = skystreamItems.map((item, idx) => ({
+    id: `sky-${idx}`,
+    title: item.name,
+    url: item.url,
+    logo: item.logo || 'https://ik.imagekit.io/7henexusempire/nexusprime.png?updatedAt=1793203628547',
+    group: item.category || 'SkyStream Universe',
+    sourceId: 'src-skystream',
+    sourceName: 'SkyStream Universe',
+  }));
+  serveM3UResponse(res, 'nexus_skystream.m3u', skyChannels);
+});
+
+// 8. Rebuild Custom Playlist Endpoint (Global & by category slug)
+app.get(['/rebuild.m3u', '/rebuild.m3u8', '/api/playlist/rebuild.m3u', '/api/playlist/rebuild.m3u8'], (req, res) => {
   const channelsMap = new Map<string, ChannelStream>(channelDatabase.map((c) => [c.id, c]));
   const rebuildChannels: ChannelStream[] = [];
 
@@ -817,7 +1160,6 @@ app.get(['/api/playlist/rebuild.m3u', '/api/playlist/rebuild.m3u8'], (req, res) 
     for (const chId of cat.channelIds) {
       const orig = channelsMap.get(chId);
       if (orig && orig.status !== 'trashed') {
-        // Clone with category assigned
         rebuildChannels.push({
           ...orig,
           group: cat.name,
@@ -826,17 +1168,76 @@ app.get(['/api/playlist/rebuild.m3u', '/api/playlist/rebuild.m3u8'], (req, res) 
     }
   }
 
-  serveM3UResponse(res, 'nexus_rebuild_custom.m3u', rebuildChannels);
+  serveM3UResponse(res, 'nexus_rebuild.m3u', rebuildChannels);
 });
 
-// Dynamic Export M3U (by query params)
+app.get(['/rebuild/:slug.m3u', '/rebuild/:slug.m3u8', '/api/rebuilt/:slug.m3u', '/api/rebuilt/:slug.m3u8'], (req, res) => {
+  const { slug } = req.params;
+  const cat = rebuildCategories.find((c) => c.slug === slug || c.id === slug);
+  if (!cat) return res.status(404).send('#EXTM3U\n# Error: Rebuild category not found\n');
+
+  const channelsMap = new Map<string, ChannelStream>(channelDatabase.map((c) => [c.id, c]));
+  const catChannels: ChannelStream[] = [];
+
+  for (const chId of cat.channelIds) {
+    const orig = channelsMap.get(chId);
+    if (orig && orig.status !== 'trashed') {
+      catChannels.push({
+        ...orig,
+        group: cat.name,
+      });
+    }
+  }
+
+  serveM3UResponse(res, `nexus_${slug}.m3u`, catChannels);
+});
+
+// 9. Dedicated URL for EVERY Source by slug! (e.g. /plugx.m3u, /stalkmax.m3u, /playlist/plugx.m3u)
+app.get(['/:slug.m3u', '/:slug.m3u8', '/playlist/:slug.m3u', '/playlist/:slug.m3u8', '/api/playlist/:slug.m3u', '/api/playlist/:slug.m3u8'], (req, res, next) => {
+  const { slug } = req.params;
+  if (['all', 'combined', 'nexus', 'fancode', 'sony', 'zee5', 'cloudstream', 'skystream', 'rebuild'].includes(slug)) {
+    return next();
+  }
+
+  const source = playlistSources.find((s) => s.slug === slug || s.id === slug);
+  if (source) {
+    const list = channelDatabase.filter((c) => c.sourceId === source.id && c.status !== 'trashed');
+    return serveM3UResponse(res, `${source.slug}.m3u`, list);
+  }
+
+  // Check if slug matches a Category
+  const categoryMatch = channelDatabase.filter((c) => {
+    const g = (c.customGroup || c.group || '').toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    return g === slug && c.status !== 'trashed';
+  });
+
+  if (categoryMatch.length > 0) {
+    return serveM3UResponse(res, `category_${slug}.m3u`, categoryMatch);
+  }
+
+  return next();
+});
+
+// 10. Dedicated URL for ANY Group Category! (e.g. /playlist/group/:groupName.m3u)
+app.get(['/playlist/group/:groupName.m3u', '/playlist/group/:groupName.m3u8'], (req, res) => {
+  const { groupName } = req.params;
+  const decodedGroup = decodeURIComponent(groupName);
+
+  const channels = channelDatabase.filter(
+    (c) => c.status !== 'trashed' && (c.customGroup || c.group) === decodedGroup
+  );
+
+  serveM3UResponse(res, `${decodedGroup.replace(/[^a-zA-Z0-9_-]/g, '_')}.m3u`, channels);
+});
+
+// 11. Dynamic Export M3U (custom multi-filter)
 app.get('/api/playlist/export', (req, res) => {
   const { sources, groups, name } = req.query;
   let list = channelDatabase.filter((c) => c.status !== 'trashed');
 
   if (sources) {
     const srcList = String(sources).split(',');
-    list = list.filter((c) => srcList.includes(c.sourceId));
+    list = list.filter((c) => srcList.includes(c.sourceId) || (c.sourceName && srcList.includes(c.sourceName)));
   }
 
   if (groups) {
@@ -848,7 +1249,7 @@ app.get('/api/playlist/export', (req, res) => {
   serveM3UResponse(res, filename, list);
 });
 
-// 7. CORS Proxy Route for Stream / Playlist Testing
+// 12. CORS Proxy Route for Stream / Playlist Testing
 app.get('/api/proxy', async (req, res) => {
   const targetUrl = req.query.url as string;
   if (!targetUrl) return res.status(400).send('URL query parameter is required');
@@ -860,14 +1261,13 @@ app.get('/api/proxy', async (req, res) => {
     const upstream = await fetch(targetUrl, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 TiviMate/4.7.0',
+        'User-Agent': appSettings.userAgent,
         'Accept': '*/*',
       },
     });
 
     clearTimeout(timeout);
 
-    // Forward content-type and stream response
     const contentType = upstream.headers.get('content-type');
     if (contentType) res.setHeader('Content-Type', contentType);
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -909,7 +1309,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Nexus Empire Server] Running on http://0.0.0.0:${PORT}`);
+    console.log(`[Nexus Empire Server] Running on http://0.0.0.0:${PORT} (Domain: ${appSettings.domain})`);
   });
 }
 

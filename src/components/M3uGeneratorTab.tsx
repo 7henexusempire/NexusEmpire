@@ -9,16 +9,22 @@ import {
   Sliders,
   ExternalLink,
   Tv,
-  CheckCircle2,
-  FileCode,
+  Layers,
+  Radio,
+  Folder,
 } from 'lucide-react';
 
 interface M3uGeneratorTabProps {
   sources: PlaylistSource[];
   channels: ChannelStream[];
+  publicBaseUrl: string;
 }
 
-export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, channels }) => {
+export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({
+  sources,
+  channels,
+  publicBaseUrl,
+}) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [qrEndpoint, setQrEndpoint] = useState<string | null>(null);
 
@@ -27,14 +33,13 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [customFilename, setCustomFilename] = useState('nexus_custom_vip');
 
-  const origin = window.location.origin;
-
   const defaultEndpoints = [
     {
       id: 'combined',
       title: 'Global Combined Playlist',
       description: 'All aggregated streams from all connected gateways and sources.',
-      url: `${origin}/api/playlist/combined.m3u`,
+      url: `${publicBaseUrl}/api/playlist/combined.m3u`,
+      shortUrl: `${publicBaseUrl}/all.m3u`,
       filename: 'nexus_combined.m3u',
       badge: 'All-In-One',
       color: 'border-amber-500/40 text-amber-300',
@@ -43,7 +48,8 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
       id: 'nexus',
       title: 'Nexus Empire Vault (AniTV / Streambox)',
       description: 'Dedicated Streambox protocol feeds with AniTV deep link triggers.',
-      url: `${origin}/api/playlist/nexus-empire.m3u`,
+      url: `${publicBaseUrl}/api/playlist/nexus-empire.m3u`,
+      shortUrl: `${publicBaseUrl}/nexus.m3u`,
       filename: 'nexus_empire_vault.m3u',
       badge: 'AniTV Special',
       color: 'border-yellow-500/40 text-yellow-300',
@@ -52,7 +58,8 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
       id: 'fancode',
       title: 'Fancode Live Sports',
       description: 'Live cricket, football, and tournament streams parsed from Fancode.',
-      url: `${origin}/api/playlist/fancode.m3u`,
+      url: `${publicBaseUrl}/api/playlist/fancode.m3u`,
+      shortUrl: `${publicBaseUrl}/fancode.m3u`,
       filename: 'nexus_fancode.m3u',
       badge: 'Sports Live',
       color: 'border-cyan-500/40 text-cyan-300',
@@ -61,7 +68,8 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
       id: 'sony',
       title: 'SonyLIV Live Events',
       description: 'Sony sports, live channels, and special event broadcasts.',
-      url: `${origin}/api/playlist/sony.m3u`,
+      url: `${publicBaseUrl}/api/playlist/sony.m3u`,
+      shortUrl: `${publicBaseUrl}/sony.m3u`,
       filename: 'nexus_sonyliv.m3u',
       badge: 'SonyLIV',
       color: 'border-purple-500/40 text-purple-300',
@@ -70,7 +78,8 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
       id: 'zee5',
       title: 'Zee5 Live Feeds',
       description: 'Zee5 regional and entertainment live streams.',
-      url: `${origin}/api/playlist/zee5.m3u`,
+      url: `${publicBaseUrl}/api/playlist/zee5.m3u`,
+      shortUrl: `${publicBaseUrl}/zee5.m3u`,
       filename: 'nexus_zee5.m3u',
       badge: 'Zee5 Live',
       color: 'border-rose-500/40 text-rose-300',
@@ -79,10 +88,31 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
       id: 'rebuild',
       title: 'Nexus Rebuild Custom Playlist',
       description: 'Curated custom categories and streams rebuilt in your personal studio.',
-      url: `${origin}/api/playlist/rebuild.m3u`,
+      url: `${publicBaseUrl}/api/playlist/rebuild.m3u`,
+      shortUrl: `${publicBaseUrl}/rebuild.m3u`,
       filename: 'nexus_rebuild.m3u',
       badge: 'Rebuild Studio',
       color: 'border-emerald-500/40 text-emerald-300',
+    },
+    {
+      id: 'cloudstream',
+      title: 'CloudStream Extensions Relay',
+      description: 'Official CNCVerse 48+ extensions catalog exported into M3U format.',
+      url: `${publicBaseUrl}/cloudstream.m3u`,
+      shortUrl: `${publicBaseUrl}/cloudstream.m3u`,
+      filename: 'nexus_cloudstream.m3u',
+      badge: 'CloudStream',
+      color: 'border-blue-500/40 text-blue-300',
+    },
+    {
+      id: 'skystream',
+      title: 'SkyStream Universe & Plugins',
+      description: 'SkyStream extensions and plugin repository.',
+      url: `${publicBaseUrl}/skystream.m3u`,
+      shortUrl: `${publicBaseUrl}/skystream.m3u`,
+      filename: 'nexus_skystream.m3u',
+      badge: 'SkyStream',
+      color: 'border-pink-500/40 text-pink-300',
     },
   ];
 
@@ -92,18 +122,16 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Derive all unique groups
   const allGroups = Array.from(
-    new Set(channels.map((c) => c.group || 'General').filter(Boolean))
+    new Set(channels.map((c) => c.customGroup || c.group || 'General').filter(Boolean))
   ).sort();
 
-  // Dynamic generated URL
   const queryParams = new URLSearchParams();
   if (selectedSources.length > 0) queryParams.set('sources', selectedSources.join(','));
   if (selectedGroups.length > 0) queryParams.set('groups', selectedGroups.join(','));
   if (customFilename.trim()) queryParams.set('name', customFilename.trim());
 
-  const dynamicExportUrl = `${origin}/api/playlist/export?${queryParams.toString()}`;
+  const dynamicExportUrl = `${publicBaseUrl}/api/playlist/export?${queryParams.toString()}`;
 
   return (
     <div className="space-y-6">
@@ -114,14 +142,13 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
           Live Hosted M3U Endpoints & Generator
         </h2>
         <p className="text-xs text-gray-300 mt-1 max-w-3xl leading-relaxed">
-          These endpoints are continuously updated on your VPS every 15 minutes.
-          Use the URLs directly in <strong>TiviMate, OTT Navigator, IPTV Smarters, VLC, or AniTV</strong>.
-          Every player will automatically receive fresh tokens and live event URLs without manual intervention.
+          Clean URLs hosted on <strong>{publicBaseUrl}</strong> (port stripped for TiviMate, OTT Navigator, AniTV, and VLC compatibility).
+          Each source, category, and rebuild set has its own dedicated live endpoint that automatically refreshes every 15 minutes.
         </p>
       </section>
 
       {/* Preset Hosted Endpoints Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {defaultEndpoints.map((ep) => {
           const isCopied = copiedKey === ep.id;
 
@@ -141,18 +168,16 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
                   {ep.description}
                 </p>
 
-                {/* Endpoint URL Pill */}
                 <div className="mt-3 p-2 rounded-lg bg-black/70 border border-white/5 flex items-center justify-between gap-2">
-                  <span className="font-mono text-[10px] text-gray-300 truncate select-all">
-                    {ep.url}
+                  <span className="font-mono text-[10px] text-cyan-300 truncate select-all">
+                    {ep.shortUrl}
                   </span>
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
                 <button
-                  onClick={() => handleCopy(ep.url, ep.id)}
+                  onClick={() => handleCopy(ep.shortUrl, ep.id)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition-colors"
                 >
                   {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -161,7 +186,7 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
 
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setQrEndpoint(ep.url)}
+                    onClick={() => setQrEndpoint(ep.shortUrl)}
                     className="p-1.5 rounded-lg bg-black/40 hover:bg-black/70 text-gray-300 hover:text-white"
                     title="Show QR Code for TV/Mobile scanning"
                   >
@@ -183,6 +208,56 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
         })}
       </section>
 
+      {/* Dedicated Endpoints Per Connected Source */}
+      <section className="crystal-panel rounded-xl p-5 space-y-3">
+        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+          <Layers className="w-4 h-4 text-amber-400" />
+          Dedicated Endpoints for Each Connected Playlist Source
+        </h3>
+        <p className="text-xs text-gray-300">
+          Every connected playlist has its own permanent URL based on its slug.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+          {sources.map((src) => {
+            const dedicatedUrl = `${publicBaseUrl}/${src.slug || src.id}.m3u`;
+            const isCopied = copiedKey === `src-ep-${src.id}`;
+
+            return (
+              <div
+                key={src.id}
+                className="crystal-panel-subtle p-2.5 rounded-lg border border-white/5 flex items-center justify-between gap-2 text-xs"
+              >
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-white truncate text-xs">{src.name}</h4>
+                  <span className="text-[10px] text-cyan-300 font-mono truncate block">
+                    /{src.slug || src.id}.m3u
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleCopy(dedicatedUrl, `src-ep-${src.id}`)}
+                    className="p-1.5 rounded bg-black/40 hover:bg-black/70 text-gray-300 hover:text-white"
+                    title="Copy Dedicated URL"
+                  >
+                    {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                  <a
+                    href={dedicatedUrl}
+                    download={`${src.slug || src.id}.m3u`}
+                    className="p-1.5 rounded bg-black/40 hover:bg-black/70 text-gray-300 hover:text-white"
+                    title="Download .m3u"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Dynamic Custom Playlist Generator */}
       <section className="crystal-panel rounded-xl p-5 space-y-4">
         <div>
@@ -196,7 +271,6 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Select Sources */}
           <div className="crystal-panel-subtle p-3.5 rounded-lg space-y-2">
             <span className="text-xs font-bold text-gray-200">1. Filter Sources (Optional)</span>
             <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 text-xs">
@@ -221,7 +295,6 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
             </div>
           </div>
 
-          {/* Select Categories */}
           <div className="crystal-panel-subtle p-3.5 rounded-lg space-y-2">
             <span className="text-xs font-bold text-gray-200">2. Filter Categories (Optional)</span>
             <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 text-xs">
@@ -247,7 +320,6 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
           </div>
         </div>
 
-        {/* Filename & Output */}
         <div className="space-y-3 pt-2">
           <div>
             <label className="block text-[11px] font-medium text-gray-300 mb-1">
@@ -262,7 +334,6 @@ export const M3uGeneratorTab: React.FC<M3uGeneratorTabProps> = ({ sources, chann
             />
           </div>
 
-          {/* Generated URL Box */}
           <div className="p-3 rounded-lg bg-black/60 border border-cyan-500/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <span className="text-[10px] text-cyan-400 font-mono uppercase block mb-0.5">

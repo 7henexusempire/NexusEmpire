@@ -4,19 +4,32 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { ChannelStream, PlaylistSource, RebuildCategory } from './types/playlist';
+import {
+  ChannelStream,
+  PlaylistSource,
+  RebuildCategory,
+  AppSettings,
+  CloudStreamItem,
+  SkyStreamItem,
+  StremioAddon,
+} from './types/playlist';
 import { VideoBackground } from './components/VideoBackground';
 import { Navbar, TabKey } from './components/Navbar';
 import { GlobalPlaylistsTab } from './components/GlobalPlaylistsTab';
 import { NexusEmpireTab } from './components/NexusEmpireTab';
 import { LiveEventsTab } from './components/LiveEventsTab';
 import { NexusRebuildTab } from './components/NexusRebuildTab';
+import { GroupManagerTab } from './components/GroupManagerTab';
+import { CloudStreamTab } from './components/CloudStreamTab';
+import { SkyStreamTab } from './components/SkyStreamTab';
 import { AiDeduplicationTab } from './components/AiDeduplicationTab';
 import { M3uGeneratorTab } from './components/M3uGeneratorTab';
 import { StreamPlayerModal } from './components/StreamPlayerModal';
 import { EditStreamModal } from './components/EditStreamModal';
+import { EditSourceModal } from './components/EditSourceModal';
 import { AddSourceModal } from './components/AddSourceModal';
 import { AddStreamModal } from './components/AddStreamModal';
+import { SettingsModal } from './components/SettingsModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('global');
@@ -24,34 +37,62 @@ export default function App() {
   // Application Data States
   const [sources, setSources] = useState<PlaylistSource[]>([]);
   const [channels, setChannels] = useState<ChannelStream[]>([]);
+  const [groups, setGroups] = useState<{ name: string; count: number; logo?: string }[]>([]);
   const [rebuildCategories, setRebuildCategories] = useState<RebuildCategory[]>([]);
+  const [cloudstreamItems, setCloudstreamItems] = useState<CloudStreamItem[]>([]);
+  const [skystreamItems, setSkystreamItems] = useState<SkyStreamItem[]>([]);
+  const [stremioAddons, setStremioAddons] = useState<StremioAddon[]>([]);
+
+  // Settings State with thenexusempire.com and port 8443 stripping
+  const [settings, setSettings] = useState<AppSettings>({
+    domain: 'thenexusempire.com',
+    port: 8443,
+    hidePort: true,
+    publicBaseUrl: 'https://thenexusempire.com',
+    customTvgUrl: 'https://thenexusempire.com/epg.xml',
+    syncIntervalMinutes: 15,
+    autoSync: true,
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 TiviMate/4.7.0',
+  });
+
   const [nextScheduledFetch, setNextScheduledFetch] = useState<number>(Date.now() + 15 * 60 * 1000);
   const [isFetching, setIsFetching] = useState<boolean>(false);
 
   // Modal States
   const [activePlayerStream, setActivePlayerStream] = useState<ChannelStream | null>(null);
   const [editingStream, setEditingStream] = useState<ChannelStream | null>(null);
+  const [editingSource, setEditingSource] = useState<PlaylistSource | null>(null);
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
   const [isAddStreamOpen, setIsAddStreamOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Load status and metadata
-  const fetchStatus = useCallback(async () => {
+  // Compute public base URL
+  const publicBaseUrl = settings.publicBaseUrl && settings.publicBaseUrl.trim()
+    ? settings.publicBaseUrl.trim().replace(/\/+$/, '')
+    : `https://${settings.domain}`;
+
+  // Load status and settings
+  const fetchStatusAndSettings = useCallback(async () => {
     try {
-      const res = await fetch('/api/status');
-      if (res.ok) {
-        const data = await res.json();
+      const [statusRes, settingsRes] = await Promise.all([
+        fetch('/api/status'),
+        fetch('/api/settings'),
+      ]);
+
+      if (statusRes.ok) {
+        const data = await statusRes.json();
         setNextScheduledFetch(data.nextScheduledFetch || Date.now() + 15 * 60 * 1000);
         setIsFetching(data.isFetching || false);
-        // If server channels count differs from current channels length and not currently fetching, refresh
-        if (data.totalChannels && data.totalChannels !== channels.length && !data.isFetching) {
-          fetchSources();
-          fetchStreams();
-        }
+      }
+
+      if (settingsRes.ok) {
+        const setts = await settingsRes.json();
+        setSettings((prev) => ({ ...prev, ...setts }));
       }
     } catch {
       // offline / starting
     }
-  }, [channels.length]);
+  }, []);
 
   // Load sources
   const fetchSources = useCallback(async () => {
@@ -69,7 +110,6 @@ export default function App() {
   // Load streams
   const fetchStreams = useCallback(async () => {
     try {
-      // Fetch both active and trashed streams for the full app experience
       const res = await fetch('/api/streams?limit=5000');
       if (res.ok) {
         const data = await res.json();
@@ -77,6 +117,19 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to load streams:', err);
+    }
+  }, []);
+
+  // Load groups / categories
+  const fetchGroups = useCallback(async () => {
+    try {
+      const res = await fetch('/api/groups');
+      if (res.ok) {
+        const data = await res.json();
+        setGroups(data);
+      }
+    } catch (err) {
+      console.error('Failed to load groups:', err);
     }
   }, []);
 
@@ -93,16 +146,47 @@ export default function App() {
     }
   }, []);
 
+  // Load CloudStream, SkyStream & Stremio Catalogs
+  const fetchCatalogs = useCallback(async () => {
+    try {
+      const [csRes, skyRes, stremioRes] = await Promise.all([
+        fetch('/api/cloudstream/items'),
+        fetch('/api/skystream/extensions'),
+        fetch('/api/stremio/addons'),
+      ]);
+
+      if (csRes.ok) setCloudstreamItems(await csRes.json());
+      if (skyRes.ok) setSkystreamItems(await skyRes.json());
+      if (stremioRes.ok) setStremioAddons(await stremioRes.json());
+    } catch (err) {
+      console.warn('Catalog fetch:', err);
+    }
+  }, []);
+
   // Master refresh function
   const refreshAll = useCallback(async () => {
-    await Promise.all([fetchStatus(), fetchSources(), fetchStreams(), fetchRebuildCategories()]);
-  }, [fetchStatus, fetchSources, fetchStreams, fetchRebuildCategories]);
+    await Promise.all([
+      fetchStatusAndSettings(),
+      fetchSources(),
+      fetchStreams(),
+      fetchGroups(),
+      fetchRebuildCategories(),
+      fetchCatalogs(),
+    ]);
+  }, [
+    fetchStatusAndSettings,
+    fetchSources,
+    fetchStreams,
+    fetchGroups,
+    fetchRebuildCategories,
+    fetchCatalogs,
+  ]);
 
   useEffect(() => {
     refreshAll();
-    const interval = setInterval(fetchStatus, 5000);
+    const interval = setInterval(fetchStatusAndSettings, 5000);
     return () => clearInterval(interval);
-  }, [refreshAll, fetchStatus]);
+  }, [refreshAll, fetchStatusAndSettings]);
 
   // Action: Fetch All Sources
   const handleFetchAll = async () => {
@@ -166,6 +250,20 @@ export default function App() {
     }
   };
 
+  // Action: Edit / Save Source (rename playlist & slug)
+  const handleSaveSource = async (id: string, updated: Partial<PlaylistSource>) => {
+    try {
+      await fetch(`/api/playlists/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      });
+      await fetchSources();
+    } catch (err) {
+      console.error('Error updating source:', err);
+    }
+  };
+
   // Action: Add Custom Stream
   const handleAddCustomStream = async (streamData: Partial<ChannelStream>) => {
     try {
@@ -180,7 +278,7 @@ export default function App() {
     }
   };
 
-  // Action: Update Stream
+  // Action: Update Stream Attributes
   const handleUpdateStream = async (updated: Partial<ChannelStream>) => {
     if (!updated.id) return;
     try {
@@ -246,7 +344,7 @@ export default function App() {
     }
   };
 
-  // Action: Rebuild category operations
+  // Rebuild category operations
   const handleAddCategory = async (name: string) => {
     try {
       const res = await fetch('/api/rebuild/categories', {
@@ -323,7 +421,96 @@ export default function App() {
     }
   };
 
+  // Group Management Actions
+  const handleRenameGroup = async (oldName: string, newName: string) => {
+    try {
+      await fetch('/api/groups/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldName, newName }),
+      });
+      await Promise.all([fetchGroups(), fetchStreams()]);
+    } catch (err) {
+      console.error('Error renaming group:', err);
+    }
+  };
+
+  const handleBulkSetLogo = async (groupName: string, logoUrl: string) => {
+    try {
+      await fetch('/api/groups/bulk-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupName, logoUrl }),
+      });
+      await Promise.all([fetchGroups(), fetchStreams()]);
+    } catch (err) {
+      console.error('Error setting group logo:', err);
+    }
+  };
+
+  const handleRemovePrefix = async (prefix: string) => {
+    try {
+      await fetch('/api/groups/remove-prefix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefix }),
+      });
+      await Promise.all([fetchGroups(), fetchStreams()]);
+    } catch (err) {
+      console.error('Error stripping prefix:', err);
+    }
+  };
+
+  const handleDeleteGroup = async (groupName: string, deleteChannels: boolean) => {
+    if (!window.confirm(`Delete category "${groupName}"?`)) return;
+    try {
+      await fetch('/api/groups/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupName, deleteChannels }),
+      });
+      await Promise.all([fetchGroups(), fetchStreams()]);
+    } catch (err) {
+      console.error('Error deleting group:', err);
+    }
+  };
+
+  const handleCreateGroup = async (name: string) => {
+    setGroups((prev) => [...prev, { name, count: 0 }]);
+  };
+
+  // Settings & Backup
+  const handleSaveSettings = async (newSettings: Partial<AppSettings>) => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setSettings(saved);
+      }
+    } catch (err) {
+      console.error('Error saving settings:', err);
+    }
+  };
+
+  const handleExportBackup = () => {
+    window.location.href = '/api/backup/export';
+  };
+
+  const handleImportBackup = async (data: any) => {
+    await fetch('/api/backup/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    await refreshAll();
+  };
+
   const activeChannelCount = channels.filter((c) => c.status !== 'trashed').length;
+  const availableGroupNames = groups.map((g) => g.name);
 
   return (
     <div className="min-h-screen text-gray-100 relative selection:bg-amber-500 selection:text-black">
@@ -336,11 +523,14 @@ export default function App() {
         onTabChange={setActiveTab}
         totalChannels={activeChannelCount}
         totalSources={sources.length}
+        domain={settings.domain}
+        publicBaseUrl={publicBaseUrl}
         nextScheduledFetch={nextScheduledFetch}
         isFetching={isFetching}
         onFetchAll={handleFetchAll}
         onOpenAddSource={() => setIsAddSourceOpen(true)}
         onOpenAddStream={() => setIsAddStreamOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -350,6 +540,7 @@ export default function App() {
             sources={sources}
             channels={channels}
             rebuildCategories={rebuildCategories}
+            publicBaseUrl={publicBaseUrl}
             onPlayStream={(s) => setActivePlayerStream(s)}
             onEditStream={(s) => setEditingStream(s)}
             onDeleteStream={handleDeleteStream}
@@ -358,6 +549,7 @@ export default function App() {
             onToggleAutoRefresh={handleToggleAutoRefresh}
             onDeleteSource={handleDeleteSource}
             onOpenAddSource={() => setIsAddSourceOpen(true)}
+            onEditSource={(src) => setEditingSource(src)}
           />
         )}
 
@@ -399,6 +591,33 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'groups' && (
+          <GroupManagerTab
+            groups={groups}
+            publicBaseUrl={publicBaseUrl}
+            onRenameGroup={handleRenameGroup}
+            onBulkSetLogo={handleBulkSetLogo}
+            onRemovePrefix={handleRemovePrefix}
+            onDeleteGroup={handleDeleteGroup}
+            onCreateGroup={handleCreateGroup}
+          />
+        )}
+
+        {activeTab === 'cloudstream' && (
+          <CloudStreamTab
+            items={cloudstreamItems}
+            publicBaseUrl={publicBaseUrl}
+          />
+        )}
+
+        {activeTab === 'skystream' && (
+          <SkyStreamTab
+            skyItems={skystreamItems}
+            stremioAddons={stremioAddons}
+            publicBaseUrl={publicBaseUrl}
+          />
+        )}
+
         {activeTab === 'dedup' && (
           <AiDeduplicationTab
             channels={channels}
@@ -411,7 +630,11 @@ export default function App() {
         )}
 
         {activeTab === 'generator' && (
-          <M3uGeneratorTab sources={sources} channels={channels} />
+          <M3uGeneratorTab
+            sources={sources}
+            channels={channels}
+            publicBaseUrl={publicBaseUrl}
+          />
         )}
       </main>
 
@@ -426,8 +649,18 @@ export default function App() {
       {editingStream && (
         <EditStreamModal
           stream={editingStream}
+          availableGroups={availableGroupNames}
           onClose={() => setEditingStream(null)}
           onSave={handleUpdateStream}
+        />
+      )}
+
+      {editingSource && (
+        <EditSourceModal
+          source={editingSource}
+          publicBaseUrl={publicBaseUrl}
+          onClose={() => setEditingSource(null)}
+          onSave={handleSaveSource}
         />
       )}
 
@@ -442,6 +675,16 @@ export default function App() {
         <AddStreamModal
           onClose={() => setIsAddStreamOpen(false)}
           onAdd={handleAddCustomStream}
+        />
+      )}
+
+      {isSettingsOpen && (
+        <SettingsModal
+          settings={settings}
+          onClose={() => setIsSettingsOpen(false)}
+          onSave={handleSaveSettings}
+          onExportBackup={handleExportBackup}
+          onImportBackup={handleImportBackup}
         />
       )}
     </div>

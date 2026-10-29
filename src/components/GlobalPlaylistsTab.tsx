@@ -24,6 +24,7 @@ interface GlobalPlaylistsTabProps {
   sources: PlaylistSource[];
   channels: ChannelStream[];
   rebuildCategories: RebuildCategory[];
+  publicBaseUrl: string;
   onPlayStream: (stream: ChannelStream) => void;
   onEditStream: (stream: ChannelStream) => void;
   onDeleteStream: (streamId: string) => void;
@@ -32,12 +33,14 @@ interface GlobalPlaylistsTabProps {
   onToggleAutoRefresh: (source: PlaylistSource) => void;
   onDeleteSource: (sourceId: string) => void;
   onOpenAddSource: () => void;
+  onEditSource: (source: PlaylistSource) => void;
 }
 
 export const GlobalPlaylistsTab: React.FC<GlobalPlaylistsTabProps> = ({
   sources,
   channels,
   rebuildCategories,
+  publicBaseUrl,
   onPlayStream,
   onEditStream,
   onDeleteStream,
@@ -46,6 +49,7 @@ export const GlobalPlaylistsTab: React.FC<GlobalPlaylistsTabProps> = ({
   onToggleAutoRefresh,
   onDeleteSource,
   onOpenAddSource,
+  onEditSource,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('ALL');
@@ -155,6 +159,23 @@ export const GlobalPlaylistsTab: React.FC<GlobalPlaylistsTabProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        const url = `${publicBaseUrl}/${src.slug || src.id}.m3u`;
+                        handleCopyUrl(url, `src-url-${src.id}`);
+                      }}
+                      title={`Copy Dedicated Playlist URL (/${src.slug || src.id}.m3u)`}
+                      className="p-1 rounded bg-black/40 hover:bg-black/80 text-cyan-300 hover:text-white transition-colors"
+                    >
+                      {copiedId === `src-url-${src.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={() => onEditSource(src)}
+                      title="Edit / Rename Playlist & Slug"
+                      className="p-1 rounded bg-black/40 hover:bg-black/80 text-gray-300 hover:text-white transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => onFetchSource(src.id)}
                       disabled={isFetching}
