@@ -231,6 +231,18 @@ class CloudStreamService {
         const data = JSON.parse(raw);
         if (data && Array.isArray(data.repos)) this.repos = data.repos;
         if (data && Array.isArray(data.items)) this.items = data.items;
+
+        for (const r of this.repos) {
+          if (r.url.includes('stormunblessed') || r.url.endsWith('builds/repo.json')) {
+            r.url = 'https://raw.githubusercontent.com/Hexated/cloudstream-extensions-hexated/builds/plugins.json';
+            r.status = 'idle';
+            r.errorMessage = null;
+          } else if (r.url.includes('likdev256-banana-repo')) {
+            r.url = 'https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/builds/plugins.json';
+            r.status = 'idle';
+            r.errorMessage = null;
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load CloudStream data:', err);
@@ -253,9 +265,21 @@ class CloudStreamService {
   }
 
   private initDefaultRepos() {
+    for (const repo of this.repos) {
+      if (repo.url.includes('stormunblessed') || repo.url.endsWith('builds/repo.json')) {
+        repo.url = 'https://raw.githubusercontent.com/Hexated/cloudstream-extensions-hexated/builds/plugins.json';
+        repo.status = 'idle';
+        repo.errorMessage = null;
+      } else if (repo.url.includes('likdev256-banana-repo')) {
+        repo.url = 'https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/builds/plugins.json';
+        repo.status = 'idle';
+        repo.errorMessage = null;
+      }
+    }
+
     for (const d of DEFAULT_REPOSITORIES) {
-      const exists = this.repos.find((r) => r.url === d.url || r.id === d.id);
-      if (!exists) {
+      const existing = this.repos.find((r) => r.id === d.id);
+      if (!existing) {
         this.repos.push({
           id: d.id,
           name: d.name,
@@ -267,6 +291,13 @@ class CloudStreamService {
           description: d.description,
           iconUrl: d.iconUrl,
         });
+      } else {
+        existing.url = d.url;
+        existing.name = d.name;
+        if (existing.errorMessage?.includes('404') || existing.errorMessage?.includes('fetch failed')) {
+          existing.status = 'idle';
+          existing.errorMessage = null;
+        }
       }
     }
     this.save();

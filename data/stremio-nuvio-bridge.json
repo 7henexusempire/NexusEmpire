@@ -1,0 +1,309 @@
+{
+  "addons": [
+    {
+      "id": "cinemeta",
+      "name": "Cinemeta (Official)",
+      "version": "3.0.12",
+      "description": "Official Stremio & Nuvio catalog metadata for Movies, TV Series and Anime",
+      "manifestUrl": "https://v3-cinemeta.strem.io/manifest.json",
+      "logo": "https://v3-cinemeta.strem.io/logo.png",
+      "types": [
+        "movie",
+        "series",
+        "anime"
+      ],
+      "resources": [
+        "catalog",
+        "meta"
+      ],
+      "enabled": true,
+      "isNuvioCompatible": true,
+      "status": "idle",
+      "errorMessage": null,
+      "lastSync": null
+    },
+    {
+      "id": "cyberflix",
+      "name": "CyberFlix Catalog",
+      "version": "1.4.1",
+      "description": "Extensive catalogs from Netflix, Disney+, AppleTV+, Prime Video and HBO Max",
+      "manifestUrl": "https://cyberflix.elfhosted.com/manifest.json",
+      "logo": "https://cyberflix.elfhosted.com/logo.png",
+      "types": [
+        "movie",
+        "series"
+      ],
+      "resources": [
+        "catalog",
+        "meta"
+      ],
+      "enabled": true,
+      "isNuvioCompatible": true,
+      "status": "idle",
+      "errorMessage": null,
+      "lastSync": null
+    },
+    {
+      "id": "mediafusion",
+      "name": "MediaFusion Live & Sports",
+      "version": "4.2.0",
+      "description": "Live TV events, Formula 1, MotoGP, Football, Cricket and live channels",
+      "manifestUrl": "https://mediafusion.elfhosted.com/manifest.json",
+      "logo": "https://mediafusion.elfhosted.com/static/images/mediafusion_logo.png",
+      "types": [
+        "tv",
+        "sports",
+        "channel"
+      ],
+      "resources": [
+        "stream",
+        "catalog",
+        "meta"
+      ],
+      "enabled": true,
+      "isNuvioCompatible": true,
+      "status": "idle",
+      "errorMessage": null,
+      "lastSync": null
+    },
+    {
+      "id": "torrentio",
+      "name": "Torrentio Scraper",
+      "version": "1.0.13",
+      "description": "High-speed stream link aggregator for Stremio & Nuvio",
+      "manifestUrl": "https://torrentio.strem.fun/manifest.json",
+      "logo": "https://torrentio.strem.fun/logo.png",
+      "types": [
+        "movie",
+        "series"
+      ],
+      "resources": [
+        "stream"
+      ],
+      "enabled": true,
+      "isNuvioCompatible": true,
+      "status": "idle",
+      "errorMessage": null,
+      "lastSync": null
+    },
+    {
+      "id": "kitsu",
+      "name": "Anime Kitsu Catalog",
+      "version": "2.0.4",
+      "description": "Rich Japanese anime catalogs, seasons, episodes and streams",
+      "manifestUrl": "https://anime-kitsu.strem.fun/manifest.json",
+      "logo": "https://anime-kitsu.strem.fun/logo.png",
+      "types": [
+        "anime",
+        "series",
+        "movie"
+      ],
+      "resources": [
+        "catalog",
+        "meta"
+      ],
+      "enabled": true,
+      "isNuvioCompatible": true,
+      "status": "idle",
+      "errorMessage": null,
+      "lastSync": null
+    },
+    {
+      "id": "opensubtitles",
+      "name": "OpenSubtitles v3",
+      "version": "1.0.0",
+      "description": "Official subtitle provider for Stremio & Nuvio player streams",
+      "manifestUrl": "https://opensubtitles-v3.strem.io/manifest.json",
+      "logo": "https://opensubtitles-v3.strem.io/logo.png",
+      "types": [
+        "movie",
+        "series"
+      ],
+      "resources": [
+        "subtitles"
+      ],
+      "enabled": true,
+      "isNuvioCompatible": true,
+      "status": "idle",
+      "errorMessage": null,
+      "lastSync": null
+    },
+    {
+      "id": "watchhub",
+      "name": "WatchHub Streaming Links",
+      "version": "1.0.2",
+      "description": "Official availability and direct streaming links directory",
+      "manifestUrl": "https://watchhub.strem.io/manifest.json",
+      "logo": "https://watchhub.strem.io/logo.png",
+      "types": [
+        "movie",
+        "series"
+      ],
+      "resources": [
+        "stream"
+      ],
+      "enabled": true,
+      "isNuvioCompatible": true,
+      "status": "idle",
+      "errorMessage": null,
+      "lastSync": null
+    }
+  ],
+  "streams": [
+    {
+      "id": "cnc_bridge_cricfy1",
+      "name": "CNCVerse - Cricfy Sports Server 1 Live",
+      "url": "https://cfyhljddgbkkufh82.top",
+      "category": "CNCVerse Live Sports",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ08h1gOe7MPxwehZBrbYKAUtjv22B6rAJ1kMkN-cea64Ka49KUyGU2lpTz&s=10",
+      "description": "Direct Cricfy live cricket & sports relay bridged via CNCVerse",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/cricfy/live1",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p HD",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_cricfy2",
+      "name": "CNCVerse - Cricfy JioStar Live 2",
+      "url": "https://cfymarkscanjiostar80.top",
+      "category": "CNCVerse Live Sports",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ7zqXTonSH_Xo--YxMlOacinf7mhLwuwSFFF1KJa8lGw&s=10",
+      "description": "JioStar, Hotstar & Cricket live sports feed via CNCVerse bridge",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/cricfy/jiostar",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p 60fps",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_tsports",
+      "name": "CNCVerse - T-Sports Cricket & Asia Cup Live",
+      "url": "https://fifabangladesh2-xyz-ekkj.spidy.online/AYN/tsports.m3u",
+      "category": "CNCVerse Live Sports",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQI9T5vcm8wU-dLuaK5vBfoHpz8KL9Ru0aU1eoVaKNcqauxGtRTfvI1rGTA&s=10",
+      "description": "T-Sports HD live sports broadcast stream",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/sports/tsports",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p HD",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_epl_hub",
+      "name": "CNCVerse - Premier League & International Football Live",
+      "url": "https://bdix.short.gy/EPLxBDIX/playlist.php",
+      "category": "CNCVerse Football Hub",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQS0OT2NFe9Jb4ofg_DrXx42EKLgyGnSGwoLg&usqp=CAU",
+      "description": "English Premier League, Champions League, La Liga live feed",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/sports/epl",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p HD",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_starsports_hd",
+      "name": "Star Sports 1 Hindi HD - CNC Bridge",
+      "url": "https://cfymarkscanjiostar80.top/starsports1",
+      "category": "CNCVerse Live Sports",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/6/6f/Star_Sports_1_Hindi_logo.svg/320px-Star_Sports_1_Hindi_logo.svg.png",
+      "description": "Star Sports Hindi 1 HD direct stream",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/live/starhindi",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p HD",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_sonyten_hd",
+      "name": "Sony Sports Ten 1 HD - CNC Bridge",
+      "url": "https://cfyhljddgbkkufh82.top/sonyten1",
+      "category": "CNCVerse Live Sports",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/7/77/Sony_Sports_Ten_1.png/320px-Sony_Sports_Ten_1.png",
+      "description": "Sony Sports Ten 1 HD official relay",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/live/sonyten1",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p HD",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_skysports_main",
+      "name": "Sky Sports Main Event HD - CNC Bridge",
+      "url": "https://bdix.short.gy/EPLxBDIX/skymain.m3u8",
+      "category": "CNCVerse Live Sports",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/30/Sky_Sports_Main_Event_logo.svg/320px-Sky_Sports_Main_Event_logo.svg.png",
+      "description": "Sky Sports UK Main Event Football & Cricket",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/sports/skymain",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p 50fps",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_willow",
+      "name": "Willow Cricket HD - CNC Bridge",
+      "url": "https://fifabangladesh2-xyz-ekkj.spidy.online/AYN/willow.m3u8",
+      "category": "CNCVerse Live Sports",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/9/94/Willow_TV_logo.svg/320px-Willow_TV_logo.svg.png",
+      "description": "Willow Cricket USA 24x7 HD Live Cricket",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/sports/willow",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p HD",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_colors_hd",
+      "name": "Colors HD - CNC Bridge",
+      "url": "https://cfymarkscanjiostar80.top/entertainment/colors",
+      "category": "CNCVerse Entertainment",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/1/1b/Colors_TV_logo.png/320px-Colors_TV_logo.png",
+      "description": "Colors TV HD Hindi flagship serials and reality shows",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/live/colors",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p HD",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_star_plus_hd",
+      "name": "Star Plus HD - CNC Bridge",
+      "url": "https://cfyhljddgbkkufh82.top/entertainment/starplus",
+      "category": "CNCVerse Entertainment",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/8/86/Star_Plus_logo_2018.png/320px-Star_Plus_logo_2018.png",
+      "description": "Star Plus HD Hindi drama serials",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/live/starplus",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p HD",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    },
+    {
+      "id": "cnc_bridge_zee_tv_hd",
+      "name": "Zee TV HD - CNC Bridge",
+      "url": "https://fifabd.site/OPLLX7/LIVE2.m3u",
+      "category": "CNCVerse Entertainment",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/0/07/Zee_TV_logo_2017.png/320px-Zee_TV_logo_2017.png",
+      "description": "Zee TV HD entertainment & reality shows",
+      "source": "cncverse_bridge",
+      "bridgeEndpoint": "https://cncverse.dpdns.org/live/zeetv",
+      "isLive": true,
+      "enabled": true,
+      "quality": "1080p HD",
+      "updatedAt": "2026-10-30T10:12:50.627Z"
+    }
+  ],
+  "cncBridgeUrl": "https://cncverse.dpdns.org"
+}

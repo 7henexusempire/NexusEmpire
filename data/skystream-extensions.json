@@ -4,14 +4,14 @@
       "id": "repo_universe",
       "name": "SkyStream Universe Repository",
       "shortcode": "universe",
-      "url": "https://raw.githubusercontent.com/akashdh11/skystream-plugins/main/plugins.json",
-      "lastSync": "2026-10-30T09:35:44.357Z",
+      "url": "https://raw.githubusercontent.com/akashdh11/skystream/master/assets/plugins/plugin.json",
+      "lastSync": "2026-10-30T10:18:15.854Z",
       "status": "success",
       "errorMessage": null,
       "itemCount": 7,
       "description": "template plugin for skystream-plugins",
       "httpCode": 200,
-      "latencyMs": 67,
+      "latencyMs": 3,
       "payloadSize": "0.3 KB",
       "rawPayload": {
         "packageName": "dev.akash.stars.template",
@@ -34,8 +34,8 @@
       "id": "repo_skysports",
       "name": "SkyStream Sports & Cricket Hub",
       "shortcode": "skysports",
-      "url": "https://raw.githubusercontent.com/akashdh11/skystream/main/extensions/sports.json",
-      "lastSync": "2026-10-30T09:35:45.455Z",
+      "url": "https://raw.githubusercontent.com/stormunblessed/stormunblessed-cs3/builds/repo.json",
+      "lastSync": "2026-10-30T10:18:15.858Z",
       "status": "error",
       "errorMessage": "HTTP 404: Not Found",
       "itemCount": 0,
@@ -47,13 +47,13 @@
       "name": "Cricfy SkyStream Bridge",
       "shortcode": "cricfy",
       "url": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "lastSync": "2026-10-30T09:35:45.984Z",
+      "lastSync": "2026-10-30T10:18:15.863Z",
       "status": "success",
       "errorMessage": null,
       "itemCount": 0,
       "description": "All Language Contents",
       "httpCode": 200,
-      "latencyMs": 521,
+      "latencyMs": 4,
       "payloadSize": "0.3 KB",
       "rawPayload": {
         "name": "CNC Repo(All Language)",
@@ -70,7 +70,7 @@
       "name": "SuperStream & Cloud Provider Hub",
       "shortcode": "superstream",
       "url": "https://raw.githubusercontent.com/stormunblessed/skystream-extensions/main/repo.json",
-      "lastSync": "2026-10-30T09:35:46.533Z",
+      "lastSync": "2026-10-30T10:18:15.867Z",
       "status": "error",
       "errorMessage": "HTTP 404: Not Found",
       "itemCount": 0,
@@ -82,7 +82,7 @@
       "name": "Global Sports & Tournaments",
       "shortcode": "sports",
       "url": "https://fifabangladesh2-xyz-ekkj.spidy.online/AYN/tsports.m3u",
-      "lastSync": "2026-10-30T09:35:46.547Z",
+      "lastSync": "2026-10-30T10:18:15.875Z",
       "status": "error",
       "errorMessage": "fetch failed",
       "itemCount": 0,
@@ -94,13 +94,13 @@
       "name": "SkyStream Movies & Series Scraper",
       "shortcode": "cinema",
       "url": "https://v3-cinemeta.strem.io/manifest.json",
-      "lastSync": "2026-10-30T09:35:46.593Z",
+      "lastSync": "2026-10-30T10:18:15.904Z",
       "status": "success",
       "errorMessage": null,
       "itemCount": 0,
       "description": "The official addon for movie and series catalogs",
       "httpCode": 200,
-      "latencyMs": 45,
+      "latencyMs": 28,
       "payloadSize": "6.2 KB",
       "rawPayload": {
         "id": "com.linvo.cinemeta",
@@ -895,7 +895,7 @@
       "repoName": "SkyStream Universe",
       "enabled": true,
       "isLive": true,
-      "updatedAt": "2026-10-30T09:35:44.357Z"
+      "updatedAt": "2026-10-30T10:18:15.854Z"
     },
     {
       "id": "skystream_universe_cinema",
@@ -917,7 +917,7 @@
       "repoName": "SkyStream Universe",
       "enabled": true,
       "isLive": true,
-      "updatedAt": "2026-10-30T09:35:44.357Z"
+      "updatedAt": "2026-10-30T10:18:15.854Z"
     },
     {
       "id": "skystream_universe_entertainment",
@@ -939,7 +939,7 @@
       "repoName": "SkyStream Universe",
       "enabled": true,
       "isLive": true,
-      "updatedAt": "2026-10-30T09:35:44.357Z"
+      "updatedAt": "2026-10-30T10:18:15.854Z"
     },
     {
       "id": "skystream_universe_jiostar",
@@ -961,7 +961,7 @@
       "repoName": "SkyStream Universe",
       "enabled": true,
       "isLive": true,
-      "updatedAt": "2026-10-30T09:35:44.357Z"
+      "updatedAt": "2026-10-30T10:18:15.854Z"
     },
     {
       "id": "skystream_universe_epl",
@@ -983,7 +983,7 @@
       "repoName": "SkyStream Universe",
       "enabled": true,
       "isLive": true,
-      "updatedAt": "2026-10-30T09:35:44.357Z"
+      "updatedAt": "2026-10-30T10:18:15.854Z"
     },
     {
       "id": "skystream_universe_live_2",
@@ -1005,7 +1005,7 @@
       "repoName": "SkyStream Universe",
       "enabled": true,
       "isLive": true,
-      "updatedAt": "2026-10-30T09:35:44.357Z"
+      "updatedAt": "2026-10-30T10:18:15.854Z"
     },
     {
       "id": "skystream_universe_live_1",
@@ -1027,7 +1027,7 @@
       "repoName": "SkyStream Universe",
       "enabled": true,
       "isLive": true,
-      "updatedAt": "2026-10-30T09:35:44.357Z"
+      "updatedAt": "2026-10-30T10:18:15.854Z"
     }
   ]
 }

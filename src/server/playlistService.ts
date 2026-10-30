@@ -233,7 +233,7 @@ export const DEFAULT_NEXUSEMPIRE: NexusEmpireItem[] = [
     hash: 'dbd3d88df5fe1594d5d64afb3b6704be',
     slug: 'matchevents',
     m3uSlug: 'matchevents',
-    category: 'Live Sports',
+    category: '🔴 All Live Match Events Schedule 🔴',
     channelCount: 0,
     status: 'ready',
     lastUpdated: null,
@@ -258,17 +258,47 @@ export const DEFAULT_NEXUSEMPIRE: NexusEmpireItem[] = [
   },
   {
     id: 'adult',
-    name: '18+ Premium Content',
+    name: '18+ Premium Quality Content',
     uri: 'streambox://open/d45fee7c264f4c64e29a1c5162d8ad8e',
     hash: 'd45fee7c264f4c64e29a1c5162d8ad8e',
     slug: 'adult',
     m3uSlug: 'adult',
-    category: 'Premium 18+',
+    category: '🔞18+ Premium Quality Content 🌚',
     channelCount: 0,
     status: 'ready',
     lastUpdated: null,
     logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png',
-    description: '🔞 Premium Quality Content - Working Only Apk Version 4.0.0+',
+    description: '📌 Working Only Apk Version 4.0.0',
+    enabled: true,
+  },
+  {
+    id: 'biggboss',
+    name: 'Bigg Boss',
+    uri: 'streambox://open/188140cf39bd8728cfa2f19290218e2b',
+    hash: '188140cf39bd8728cfa2f19290218e2b',
+    slug: 'biggboss',
+    m3uSlug: 'biggboss',
+    category: 'Entertainment & Reality',
+    channelCount: 0,
+    status: 'ready',
+    lastUpdated: null,
+    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png',
+    description: 'Bigg Boss 24/7 Live streams and reality broadcasts.',
+    enabled: true,
+  },
+  {
+    id: 'zeechannels',
+    name: 'Zee channels',
+    uri: 'streambox://open/8003bfd97ec3d87c8df2280494c3aa26',
+    hash: '8003bfd97ec3d87c8df2280494c3aa26',
+    slug: 'zeechannels',
+    m3uSlug: 'zeechannels',
+    category: 'Zee Entertainment',
+    channelCount: 0,
+    status: 'ready',
+    lastUpdated: null,
+    logo: 'https://ik.imagekit.io/7henexusempire/nexusprime.png',
+    description: 'Zee TV HD, Zee Cinema, Zee News, &TV & Zing live channels.',
     enabled: true,
   },
 ];
@@ -276,17 +306,22 @@ export const DEFAULT_NEXUSEMPIRE: NexusEmpireItem[] = [
 export const DEFAULT_ANINEXUS = DEFAULT_NEXUSEMPIRE;
 
 export const DEFAULT_NEXUSEMPIRE_CATEGORIES = [
+  'Master Bouquet',
+  'TV Channels',
+  '🔴 All Live Match Events Schedule 🔴',
+  'Sony Entertainment',
+  'Cricket Exclusive',
+  '🔞18+ Premium Quality Content 🌚',
+  'Entertainment & Reality',
+  'Zee Entertainment',
   'Entertainment & Movies',
   'Live Sports',
   'Live Cricket',
   'Star Sports',
-  'Cricket Exclusive',
-  'Sony Entertainment',
   'Sony Sports',
   'Sony Movies',
   'Sony SAB & Comedy',
   'JioTV & Multiplex',
-  'Jio Sports',
   'News & Info',
   'Kids & Animation',
   'Music & Youth',
@@ -365,7 +400,15 @@ class PlaylistService {
           const loadedMap = new Map(data.nexusempireItems.map((i) => [i.id, i]));
           this.nexusempireItems = DEFAULT_NEXUSEMPIRE.map((def) => {
             const saved = loadedMap.get(def.id);
-            return saved ? { ...def, ...saved } : def;
+            if (!saved) return def;
+            return {
+              ...def,
+              ...saved,
+              hash: def.hash || saved.hash,
+              uri: def.uri || saved.uri,
+              category: def.category || saved.category,
+              description: def.description || saved.description,
+            };
           });
           for (const item of data.nexusempireItems) {
             if (!this.nexusempireItems.some((x) => x.id === item.id)) {
@@ -511,7 +554,7 @@ class PlaylistService {
       } else {
         console.log(`[Cartel 187] Fetching "${src.name}" from ${src.url}...`);
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
 
         const response = await fetch(src.url, {
           headers: {
@@ -551,11 +594,19 @@ class PlaylistService {
       console.log(`[Cartel 187] Source "${src.name}" (${src.slug}) synced: ${channels.length} channels`);
       return { success: true, message: `Synced ${channels.length} channels from ${src.name}`, count: channels.length };
     } catch (err: any) {
-      console.error(`[Cartel 187] Error fetching source "${src.name}":`, err);
-      src.status = 'error';
-      src.errorMessage = err.message || 'Fetch failed';
+      console.error(`[Cartel 187] Error fetching source "${src.name}":`, err.message || err);
+      // Preserve existing cached channels if available
+      const existingCount = (this.channelsBySource[src.id] || []).length;
+      if (existingCount > 0) {
+        src.status = 'success';
+        src.errorMessage = null;
+        src.channelCount = existingCount;
+      } else {
+        src.status = 'error';
+        src.errorMessage = err.message || 'Fetch failed';
+      }
       this.saveCustomizations();
-      return { success: false, message: src.errorMessage || 'Fetch failed', count: src.channelCount };
+      return { success: src.status === 'success', message: src.errorMessage || 'Fetch failed', count: src.channelCount };
     }
   }
 
@@ -566,23 +617,22 @@ class PlaylistService {
 
     this.isSyncingAll = true;
     const enabledSources = this.sources.filter((s) => s.enabled);
-    console.log(`[Cartel 187] Starting parallel sync for ${enabledSources.length} active sources...`);
+    console.log(`[Cartel 187] Starting sequential sync for ${enabledSources.length} active sources...`);
 
     let totalSynced = 0;
     const errors: string[] = [];
 
-    const results = await Promise.allSettled(
-      enabledSources.map((src) => this.fetchSingleSource(src.id))
-    );
-
-    for (let i = 0; i < results.length; i++) {
-      const res = results[i];
-      const src = enabledSources[i];
-      if (res.status === 'fulfilled' && res.value.success) {
-        totalSynced += res.value.count;
-      } else {
-        const msg = res.status === 'fulfilled' ? res.value.message : (res.reason?.message || 'Failed');
-        errors.push(`${src.name}: ${msg}`);
+    // Fetch sequentially to prevent network bandwidth choking on multi-MB M3U playlists
+    for (const src of enabledSources) {
+      try {
+        const res = await this.fetchSingleSource(src.id);
+        if (res.success) {
+          totalSynced += res.count;
+        } else {
+          errors.push(`${src.name}: ${res.message}`);
+        }
+      } catch (e: any) {
+        errors.push(`${src.name}: ${e.message}`);
       }
     }
 
@@ -861,6 +911,34 @@ class PlaylistService {
             const g = (c.customGroup || c.groupTitle).toLowerCase();
             const n = (c.customName || c.name).toLowerCase();
             return g.includes('adult') || g.includes('18+') || n.includes('xxx') || n.includes('adult');
+          });
+          break;
+        case 'biggboss':
+          rawMatched = all.filter((c) => {
+            const g = (c.customGroup || c.groupTitle).toLowerCase();
+            const n = (c.customName || c.name).toLowerCase();
+            return (
+              g.includes('bigg boss') ||
+              g.includes('biggboss') ||
+              n.includes('bigg boss') ||
+              n.includes('biggboss') ||
+              n.includes('colors') ||
+              g.includes('reality')
+            );
+          });
+          break;
+        case 'zeechannels':
+          rawMatched = all.filter((c) => {
+            const g = (c.customGroup || c.groupTitle).toLowerCase();
+            const n = (c.customName || c.name).toLowerCase();
+            return (
+              g.includes('zee') ||
+              n.includes('zee') ||
+              n.includes('&tv') ||
+              n.includes('&pictures') ||
+              n.includes('zing') ||
+              g.includes('zee network')
+            );
           });
           break;
         default:

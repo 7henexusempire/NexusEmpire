@@ -1,0 +1,84 @@
+[
+  {
+    "id": "match-ipl-live",
+    "slug": "ipl-live-match",
+    "title": "IPL 2025: Chennai Super Kings vs Royal Challengers Bengaluru",
+    "sport": "Cricket",
+    "category": "IPL 2025",
+    "status": "LIVE",
+    "startTime": "Today, 19:30 IST",
+    "poster": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+    "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+    "description": "High-octane Indian Premier League clash with multi-angle and multi-language live streams.",
+    "streams": [
+      {
+        "id": "stream_ipl_1",
+        "title": "Star Sports 1 Hindi HD (Primary)",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u",
+        "serverLabel": "Server 1 - Hindi Commentary HD",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "quality": "1080p 50fps",
+        "sourceService": "Live Feeds",
+        "enabled": true
+      },
+      {
+        "id": "stream_ipl_2",
+        "title": "Star Sports 1 English 4K (Ultra HD)",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/zyphx8/refs/heads/main/data/fancode.m3u",
+        "serverLabel": "Server 2 - English 4K Ultra HD",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "quality": "4K UHD",
+        "sourceService": "FanCode / Jio",
+        "enabled": true
+      },
+      {
+        "id": "stream_ipl_3",
+        "title": "Willow Cricket HD (USA & Global)",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u",
+        "serverLabel": "Server 3 - Willow Cricket Global",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "quality": "1080p",
+        "sourceService": "Willow TV",
+        "enabled": true
+      }
+    ],
+    "createdAt": "2026-10-30T10:12:50.628Z",
+    "updatedAt": "2026-10-30T10:12:50.628Z"
+  },
+  {
+    "id": "match-ucl-final",
+    "slug": "ucl-live-stream",
+    "title": "UEFA Champions League: Real Madrid vs Manchester City",
+    "sport": "Football",
+    "category": "UEFA Champions League",
+    "status": "LIVE",
+    "startTime": "Tonight, 20:45 CET",
+    "poster": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+    "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+    "description": "European powerhouse heavyweight showdown with multiple commentary feeds.",
+    "streams": [
+      {
+        "id": "stream_ucl_1",
+        "title": "Sony Sports Ten 2 HD - English",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u",
+        "serverLabel": "Server 1 - Sony Ten 2 HD English",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "quality": "1080p HD",
+        "sourceService": "SonyLIV",
+        "enabled": true
+      },
+      {
+        "id": "stream_ucl_2",
+        "title": "Sony Sports Ten 3 HD - Hindi",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u",
+        "serverLabel": "Server 2 - Sony Ten 3 HD Hindi",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "quality": "1080p HD",
+        "sourceService": "SonyLIV",
+        "enabled": true
+      }
+    ],
+    "createdAt": "2026-10-30T10:12:50.628Z",
+    "updatedAt": "2026-10-30T10:12:50.628Z"
+  }
+]

@@ -1,0 +1,89 @@
+[
+  {
+    "id": "prime-master",
+    "slug": "nexus-prime",
+    "name": "Nexus Prime Ultimate Master",
+    "description": "Master curated VIP bouquet featuring premier sports, live cinema, events & regional streams.",
+    "groupLogos": {
+      "Live Sports & Cricket": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+      "Cinema & Blockbusters": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+      "Live Events & Shows": "https://ik.imagekit.io/7henexusempire/nexusprime.png"
+    },
+    "streams": [
+      {
+        "id": "prime_s1",
+        "name": "Sony Sports Ten 1 HD",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u",
+        "groupTitle": "Live Sports & Cricket",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "groupLogo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "tvgId": "SonyTen1.in",
+        "tvgName": "Sony Ten 1 HD",
+        "enabled": true,
+        "sourceOrigin": "Sony Network"
+      },
+      {
+        "id": "prime_s2",
+        "name": "Sony Sports Ten 2 HD",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u",
+        "groupTitle": "Live Sports & Cricket",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "groupLogo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "tvgId": "SonyTen2.in",
+        "tvgName": "Sony Ten 2 HD",
+        "enabled": true,
+        "sourceOrigin": "Sony Network"
+      },
+      {
+        "id": "prime_s3",
+        "name": "Sony Sports Ten 5 HD",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u",
+        "groupTitle": "Live Sports & Cricket",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "groupLogo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "tvgId": "SonyTen5.in",
+        "tvgName": "Sony Ten 5 HD",
+        "enabled": true,
+        "sourceOrigin": "Sony Network"
+      },
+      {
+        "id": "prime_s4",
+        "name": "FanCode Premier Live Match",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/zyphx8/refs/heads/main/data/fancode.m3u",
+        "groupTitle": "Live Sports & Cricket",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "groupLogo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "tvgId": "FanCode.Live",
+        "tvgName": "FanCode Live",
+        "enabled": true,
+        "sourceOrigin": "FanCode Live"
+      },
+      {
+        "id": "prime_s5",
+        "name": "Zee TV HD",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/quarnex/refs/heads/main/data/zee5.m3u",
+        "groupTitle": "Cinema & Blockbusters",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "groupLogo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "tvgId": "ZeeTV.in",
+        "tvgName": "Zee TV HD",
+        "enabled": true,
+        "sourceOrigin": "Zee5 Live"
+      },
+      {
+        "id": "prime_s6",
+        "name": "Zee Cinema HD",
+        "url": "https://raw.githubusercontent.com/doctor-8trange/quarnex/refs/heads/main/data/zee5.m3u",
+        "groupTitle": "Cinema & Blockbusters",
+        "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "groupLogo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
+        "tvgId": "ZeeCinema.in",
+        "tvgName": "Zee Cinema HD",
+        "enabled": true,
+        "sourceOrigin": "Zee5 Live"
+      }
+    ],
+    "createdAt": "2026-10-30T10:12:50.628Z",
+    "updatedAt": "2026-10-30T10:12:50.628Z"
+  }
+]

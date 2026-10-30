@@ -233,6 +233,22 @@ class SkyStreamService {
         const data = JSON.parse(raw);
         if (data && Array.isArray(data.repos)) this.repos = data.repos;
         if (data && Array.isArray(data.items)) this.items = data.items;
+
+        for (const r of this.repos) {
+          if (r.url.includes('stormunblessed') || r.url.includes('skystream-extensions')) {
+            r.url = 'https://raw.githubusercontent.com/Hexated/cloudstream-extensions-hexated/builds/plugins.json';
+            r.status = 'idle';
+            r.errorMessage = null;
+          } else if (r.url.includes('fifabangladesh2') || r.url.includes('spidy.online')) {
+            r.url = 'https://bdix.short.gy/EPLxBDIX/playlist.php';
+            r.status = 'idle';
+            r.errorMessage = null;
+          } else if (r.url.endsWith('builds/repo.json')) {
+            r.url = r.url.replace('builds/repo.json', 'builds/plugins.json');
+            r.status = 'idle';
+            r.errorMessage = null;
+          }
+        }
       }
     } catch (e) {
       console.error('[SkyStream] Error reading storage file:', e);
@@ -253,9 +269,27 @@ class SkyStreamService {
   }
 
   private initDefaultRepos() {
+    // 1. Direct migration of existing saved repos with dead/deprecated URLs
+    for (const repo of this.repos) {
+      if (repo.url.includes('stormunblessed') || repo.url.includes('skystream-extensions')) {
+        repo.url = 'https://raw.githubusercontent.com/Hexated/cloudstream-extensions-hexated/builds/plugins.json';
+        repo.status = 'idle';
+        repo.errorMessage = null;
+      } else if (repo.url.includes('fifabangladesh2') || repo.url.includes('spidy.online')) {
+        repo.url = 'https://bdix.short.gy/EPLxBDIX/playlist.php';
+        repo.status = 'idle';
+        repo.errorMessage = null;
+      } else if (repo.url.endsWith('builds/repo.json')) {
+        repo.url = repo.url.replace('builds/repo.json', 'builds/plugins.json');
+        repo.status = 'idle';
+        repo.errorMessage = null;
+      }
+    }
+
+    // 2. Ensure default shortcode mappings exist
     for (const [code, info] of Object.entries(SHORTCODE_REGISTRY)) {
-      const exists = this.repos.find((r) => r.shortcode === code);
-      if (!exists) {
+      const existing = this.repos.find((r) => r.shortcode === code || r.id === `skystream_repo_${code}` || r.id === `repo_${code}`);
+      if (!existing) {
         this.repos.push({
           id: `skystream_repo_${code}`,
           name: info.name,
@@ -267,6 +301,14 @@ class SkyStreamService {
           itemCount: 0,
           description: info.description,
         });
+      } else {
+        existing.shortcode = code;
+        existing.url = info.url;
+        existing.name = info.name;
+        if (existing.errorMessage?.includes('404') || existing.errorMessage?.includes('fetch failed')) {
+          existing.status = 'idle';
+          existing.errorMessage = null;
+        }
       }
     }
 
@@ -480,6 +522,7 @@ class SkyStreamService {
 
       this.items = this.items.filter((i) => i.repoUrl !== repo.url && (!repo.shortcode || i.shortcode !== repo.shortcode)).concat(parsed);
 
+      repo.url = targetUrl;
       repo.status = 'success';
       repo.lastSync = new Date().toISOString();
       repo.itemCount = parsed.length;

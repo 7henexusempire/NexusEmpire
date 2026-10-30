@@ -609,6 +609,8 @@ app.get('/api/playlist/:slug.m3u', (req, res) => {
   if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
   if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
   if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  const empireItem = playlistService.getNexusEmpireItems().find((i) => i.id === slug || i.slug === slug || i.m3uSlug === slug);
+  if (empireItem) return serveNexusEmpireM3U(req, res, slug);
   return serveM3U(req, res, slug);
 });
 
@@ -621,6 +623,8 @@ app.get('/api/playlist/:slug.m3u8', (req, res) => {
   if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
   if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
   if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  const empireItem = playlistService.getNexusEmpireItems().find((i) => i.id === slug || i.slug === slug || i.m3uSlug === slug);
+  if (empireItem) return serveNexusEmpireM3U(req, res, slug);
   return serveM3U(req, res, slug);
 });
 
@@ -633,6 +637,8 @@ app.get('/playlist/:slug.m3u', (req, res) => {
   if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
   if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
   if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  const empireItem = playlistService.getNexusEmpireItems().find((i) => i.id === slug || i.slug === slug || i.m3uSlug === slug);
+  if (empireItem) return serveNexusEmpireM3U(req, res, slug);
   return serveM3U(req, res, slug);
 });
 
@@ -645,6 +651,8 @@ app.get('/playlist/:slug.m3u8', (req, res) => {
   if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
   if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
   if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  const empireItem = playlistService.getNexusEmpireItems().find((i) => i.id === slug || i.slug === slug || i.m3uSlug === slug);
+  if (empireItem) return serveNexusEmpireM3U(req, res, slug);
   return serveM3U(req, res, slug);
 });
 
@@ -657,6 +665,8 @@ app.get('/api/playlist/:slug.json', (req, res) => {
   if (rebuildService.getById(slug)) return serveRebuiltJSON(req, res, slug);
   if (primeService.getById(slug)) return servePrimeJSON(req, res, slug);
   if (nexusEventsService.getById(slug)) return serveNexusEventsJSON(req, res, slug);
+  const empireItem = playlistService.getNexusEmpireItems().find((i) => i.id === slug || i.slug === slug || i.m3uSlug === slug);
+  if (empireItem) return serveNexusEmpireJSON(req, res, slug);
   return serveJSON(req, res, slug);
 });
 
@@ -669,6 +679,8 @@ app.get('/playlist/:slug.json', (req, res) => {
   if (rebuildService.getById(slug)) return serveRebuiltJSON(req, res, slug);
   if (primeService.getById(slug)) return servePrimeJSON(req, res, slug);
   if (nexusEventsService.getById(slug)) return serveNexusEventsJSON(req, res, slug);
+  const empireItem = playlistService.getNexusEmpireItems().find((i) => i.id === slug || i.slug === slug || i.m3uSlug === slug);
+  if (empireItem) return serveNexusEmpireJSON(req, res, slug);
   return serveJSON(req, res, slug);
 });
 
@@ -703,6 +715,8 @@ app.get('/:slug.m3u', (req, res, next) => {
   if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
   if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
   if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  const empireItem = playlistService.getNexusEmpireItems().find((i) => i.id === slug || i.slug === slug || i.m3uSlug === slug);
+  if (empireItem) return serveNexusEmpireM3U(req, res, slug);
   return serveM3U(req, res, slug);
 });
 
@@ -719,6 +733,8 @@ app.get('/:slug.m3u8', (req, res, next) => {
   if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
   if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
   if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  const empireItem = playlistService.getNexusEmpireItems().find((i) => i.id === slug || i.slug === slug || i.m3uSlug === slug);
+  if (empireItem) return serveNexusEmpireM3U(req, res, slug);
   return serveM3U(req, res, slug);
 });
 
@@ -732,6 +748,8 @@ app.get('/:slug.json', (req, res, next) => {
   if (rebuildService.getById(slug)) return serveRebuiltJSON(req, res, slug);
   if (primeService.getById(slug)) return servePrimeJSON(req, res, slug);
   if (nexusEventsService.getById(slug)) return serveNexusEventsJSON(req, res, slug);
+  const empireItem = playlistService.getNexusEmpireItems().find((i) => i.id === slug || i.slug === slug || i.m3uSlug === slug);
+  if (empireItem) return serveNexusEmpireJSON(req, res, slug);
   return serveJSON(req, res, slug);
 });
 

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rebuild_vip_master",
+    "slug": "nexus-rebuilt-main",
+    "name": "Nexus Rebuilt VIP Master",
+    "description": "Curated bouquet created with Nexus Rebuilder for TiviMate & OTT Navigator",
+    "targetType": "normal",
+    "targetSourceOrCategory": "all",
+    "customCategories": {
+      "Nexus Sports HD": [],
+      "Nexus Movies & Cinema": [],
+      "Nexus Entertainment": [],
+      "Nexus 24x7 News": []
+    },
+    "enableChannelNumbering": true,
+    "startChannelNumber": 1,
+    "createdAt": "2026-10-30T10:12:50.589Z",
+    "updatedAt": "2026-10-30T10:12:50.589Z"
+  }
+]

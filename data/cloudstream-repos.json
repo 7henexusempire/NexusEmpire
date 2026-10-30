@@ -4,15 +4,253 @@
       "id": "repo_default_cnc",
       "name": "CNCVerse CloudStream Official",
       "url": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "lastSync": "2026-10-27T13:14:28.868Z",
+      "lastSync": "2026-10-30T10:18:15.861Z",
       "status": "success",
       "errorMessage": null,
-      "itemCount": 48,
+      "itemCount": 47,
       "description": "All Language Contents",
-      "iconUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/cnc.png"
+      "iconUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/cnc.png",
+      "httpCode": 200,
+      "latencyMs": 3,
+      "payloadSize": "0.3 KB",
+      "rawPayload": {
+        "name": "CNC Repo(All Language)",
+        "iconUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/cnc.png",
+        "description": "All Language Contents",
+        "manifestVersion": 1,
+        "pluginLists": [
+          "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/builds/plugins.json"
+        ]
+      }
+    },
+    {
+      "id": "repo_hexated",
+      "name": "Hexated Repository (Multi-Provider)",
+      "url": "https://raw.githubusercontent.com/Hexated/cloudstream-extensions-hexated/builds/repo.json",
+      "lastSync": "2026-10-30T10:18:16.158Z",
+      "status": "error",
+      "errorMessage": "HTTP 404: Not Found",
+      "itemCount": 0,
+      "description": "High-speed Multi-Language, Live Sports, Anime & Movies extensions",
+      "iconUrl": "https://raw.githubusercontent.com/Hexated/cloudstream-extensions-hexated/builds/icon.png",
+      "httpCode": 500
+    },
+    {
+      "id": "repo_likdev256",
+      "name": "LikDev-256 Banana Repository",
+      "url": "https://raw.githubusercontent.com/LikDev-256/likdev256-banana-repo/builds/repo.json",
+      "lastSync": "2026-10-30T10:18:16.374Z",
+      "status": "error",
+      "errorMessage": "HTTP 404: Not Found",
+      "itemCount": 0,
+      "description": "English, Asian, Anime, Cartoons and Live TV streams",
+      "iconUrl": "https://raw.githubusercontent.com/LikDev-256/likdev256-banana-repo/builds/icon.png",
+      "httpCode": 500
+    },
+    {
+      "id": "repo_superstream",
+      "name": "SuperStream & Cloud Provider Hub",
+      "url": "https://raw.githubusercontent.com/stormunblessed/stormunblessed-cs3/builds/repo.json",
+      "lastSync": "2026-10-30T10:18:16.378Z",
+      "status": "error",
+      "errorMessage": "HTTP 404: Not Found",
+      "itemCount": 0,
+      "description": "Global streaming providers with multi-resolution video links",
+      "iconUrl": "https://raw.githubusercontent.com/stormunblessed/stormunblessed-cs3/builds/icon.png",
+      "httpCode": 500
     }
   ],
   "items": [
+    {
+      "id": "live_event_willow_cricket_hd",
+      "name": "Willow Cricket HD - CloudStream Bridge",
+      "internalName": "WillowCricketHD",
+      "url": "https://fifabangladesh2-xyz-ekkj.spidy.online/AYN/willow.m3u8",
+      "category": "Cricfy Live Sports",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/9/94/Willow_TV_logo.svg/320px-Willow_TV_logo.svg.png",
+      "description": "Willow Cricket 24/7 International Cricket stream",
+      "author": "CloudStream Sports",
+      "version": "1.0",
+      "language": "en",
+      "tvTypes": [
+        "Live",
+        "Sports"
+      ],
+      "enabled": true,
+      "isLiveEvent": true,
+      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "repoName": "CNCVerse CloudStream Official",
+      "updatedAt": "2026-10-30T10:18:15.861Z"
+    },
+    {
+      "id": "live_event_sony_ten1_hd",
+      "name": "Sony Sports Ten 1 HD - CloudStream Bridge",
+      "internalName": "SonyTen1HD",
+      "url": "https://cfyhljddgbkkufh82.top/live/sonyten1.m3u8",
+      "category": "Cricfy Live Sports",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/7/77/Sony_Sports_Ten_1.png/320px-Sony_Sports_Ten_1.png",
+      "description": "Sony Sports Ten 1 HD live event stream",
+      "author": "CloudStream Sports",
+      "version": "1.0",
+      "language": "en",
+      "tvTypes": [
+        "Live",
+        "Sports"
+      ],
+      "enabled": true,
+      "isLiveEvent": true,
+      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "repoName": "CNCVerse CloudStream Official",
+      "updatedAt": "2026-10-30T10:18:15.861Z"
+    },
+    {
+      "id": "live_event_star_sports_hindi",
+      "name": "Star Sports 1 Hindi HD - CloudStream Bridge",
+      "internalName": "StarSportsHindi",
+      "url": "https://cfymarkscanjiostar80.top/live/starhindi.m3u8",
+      "category": "Cricfy Live Sports",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/6/6f/Star_Sports_1_Hindi_logo.svg/320px-Star_Sports_1_Hindi_logo.svg.png",
+      "description": "Star Sports 1 Hindi direct match relay",
+      "author": "CloudStream Sports",
+      "version": "1.0",
+      "language": "hi",
+      "tvTypes": [
+        "Live",
+        "Sports"
+      ],
+      "enabled": true,
+      "isLiveEvent": true,
+      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "repoName": "CNCVerse CloudStream Official",
+      "updatedAt": "2026-10-30T10:18:15.861Z"
+    },
+    {
+      "id": "live_event_sktech_store",
+      "name": "SKTech Global Event Relay",
+      "internalName": "SKTechStore",
+      "url": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "category": "SKTech Live Events",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQf7pkggfHJKj2R8O6ttuHxgv-vQVL03xUeAg&usqp=CAU",
+      "description": "SKTech Global Event Relay parsed from CNCVerse Extension",
+      "author": "SKTech",
+      "version": "3.4.0",
+      "language": "all",
+      "tvTypes": [
+        "Live",
+        "Sports"
+      ],
+      "enabled": true,
+      "isLiveEvent": true,
+      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "repoName": "CNCVerse CloudStream Official",
+      "updatedAt": "2026-10-30T10:18:15.861Z"
+    },
+    {
+      "id": "live_event_sktech_live2",
+      "name": "SKTech Live Events & Sports M3U",
+      "internalName": "SKTechLive2",
+      "url": "https://fifabd.site/OPLLX7/LIVE2.m3u",
+      "category": "SKTech Live Events",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQf7pkggfHJKj2R8O6ttuHxgv-vQVL03xUeAg&usqp=CAU",
+      "description": "SKTech Provider Live Tournament & Match Streams Playlist",
+      "author": "SKTech / NivinCNC",
+      "version": "3.4.0",
+      "language": "all",
+      "tvTypes": [
+        "Live",
+        "Sports",
+        "Events"
+      ],
+      "enabled": true,
+      "isLiveEvent": true,
+      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "repoName": "CNCVerse CloudStream Official",
+      "updatedAt": "2026-10-30T10:18:15.861Z"
+    },
+    {
+      "id": "live_event_cricfy_epl",
+      "name": "Cricfy EPL & Football Live Hub",
+      "internalName": "CricifyEPL",
+      "url": "https://bdix.short.gy/EPLxBDIX/playlist.php",
+      "category": "Cricfy Live Sports",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQS0OT2NFe9Jb4ofg_DrXx42EKLgyGnSGwoLg&usqp=CAU",
+      "description": "English Premier League & International Football Live playlist",
+      "author": "CNCVerse / Cricfy",
+      "version": "1.0",
+      "language": "en",
+      "tvTypes": [
+        "Live",
+        "Sports"
+      ],
+      "enabled": true,
+      "isLiveEvent": true,
+      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "repoName": "CNCVerse CloudStream Official",
+      "updatedAt": "2026-10-30T10:18:15.861Z"
+    },
+    {
+      "id": "live_event_cricfy_tsports",
+      "name": "Cricfy T-Sports HD Live Events",
+      "internalName": "CricifyTSports",
+      "url": "https://fifabangladesh2-xyz-ekkj.spidy.online/AYN/tsports.m3u",
+      "category": "Cricfy Live Sports",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQI9T5vcm8wU-dLuaK5vBfoHpz8KL9Ru0aU1eoVaKNcqauxGtRTfvI1rGTA&s=10",
+      "description": "T-Sports & Bangladesh Live Cricket Events M3U Feed",
+      "author": "CNCVerse / Cricfy",
+      "version": "1.0",
+      "language": "bn/en",
+      "tvTypes": [
+        "Live",
+        "Sports"
+      ],
+      "enabled": true,
+      "isLiveEvent": true,
+      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "repoName": "CNCVerse CloudStream Official",
+      "updatedAt": "2026-10-30T10:18:15.861Z"
+    },
+    {
+      "id": "live_event_cricfy_live_jiostar",
+      "name": "Cricfy Live Server 2 - JioStar & Cricket HD",
+      "internalName": "CricifyLiveJioStar",
+      "url": "https://cfymarkscanjiostar80.top",
+      "category": "Cricfy Live Sports",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ7zqXTonSH_Xo--YxMlOacinf7mhLwuwSFFF1KJa8lGw&s=10",
+      "description": "High-speed JioStar & Cricket Live Sports stream mirror",
+      "author": "CNCVerse / Cricfy",
+      "version": "7.6.0",
+      "language": "hi/en/ta",
+      "tvTypes": [
+        "Live",
+        "Sports"
+      ],
+      "enabled": true,
+      "isLiveEvent": true,
+      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "repoName": "CNCVerse CloudStream Official",
+      "updatedAt": "2026-10-30T10:18:15.861Z"
+    },
+    {
+      "id": "live_event_cricfy_live_s1",
+      "name": "Cricfy Live Sports - Match Stream Server 1",
+      "internalName": "CricifyLiveS1",
+      "url": "https://cfyhljddgbkkufh82.top",
+      "category": "Cricfy Live Sports",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ08h1gOe7MPxwehZBrbYKAUtjv22B6rAJ1kMkN-cea64Ka49KUyGU2lpTz&s=10",
+      "description": "Cricfy Official Live Cricket, Football & Events Feed 1",
+      "author": "CNCVerse / Cricfy",
+      "version": "7.6.0",
+      "language": "hi/en",
+      "tvTypes": [
+        "Live",
+        "Sports"
+      ],
+      "enabled": true,
+      "isLiveEvent": true,
+      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
+      "repoName": "CNCVerse CloudStream Official",
+      "updatedAt": "2026-10-30T10:18:15.861Z"
+    },
     {
       "id": "cs_repo_default_cnc_AniKoto",
       "name": "AniKoto",
@@ -35,7 +273,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_AnimeSuge",
@@ -59,7 +297,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_BilibiliProvider",
@@ -84,7 +322,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_CastleTvProvider",
@@ -107,7 +345,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_CineTvProvider",
@@ -130,7 +368,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_CineVoodProvider",
@@ -147,13 +385,13 @@
         "Movie",
         "TvSeries"
       ],
-      "fileSize": 112044,
-      "fileHash": "sha256-dc4653a8fc4243eddffda96ffdf574f1038113b04d002dc1e0afd169397a3365",
+      "fileSize": 120428,
+      "fileHash": "sha256-e9ceb0f20182208b3c19691783284e3abd5e38f35bb0a9accd3ef91dc11aca6d",
       "status": 1,
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_CNC Verse",
@@ -176,7 +414,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_CNC Verse Mobile",
@@ -193,13 +431,13 @@
         "Movie",
         "TvSeries"
       ],
-      "fileSize": 97534,
-      "fileHash": "sha256-e4c19e7590d8d6aaf558058fab579721d6c751856a6e36110abd629419d58a64",
+      "fileSize": 98226,
+      "fileHash": "sha256-6ebd3135b4731ea7154275426570d9948011e1dec5fd600357d303f3fb683167",
       "status": 1,
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_CricifyProvider",
@@ -221,7 +459,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:17:26.830Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_DesiSerialsProvider",
@@ -243,7 +481,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_DoFlixProvider",
@@ -266,7 +504,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_EinthusanProvider",
@@ -288,7 +526,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_GoldenAudiobook",
@@ -310,7 +548,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_HDOProvider",
@@ -333,7 +571,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_HDrezkaProvider",
@@ -358,7 +596,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_LibriVoxAudiobook",
@@ -380,7 +618,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_LivXowProvider",
@@ -402,7 +640,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_M3UPlaylistPlayerProvider",
@@ -424,7 +662,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_MLSBDProvider",
@@ -449,7 +687,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_MovieBoxProvider",
@@ -472,7 +710,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_MovieBoxProviderIN",
@@ -495,7 +733,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_MovieLinkBDProvider",
@@ -520,7 +758,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_MoviezwapProvider",
@@ -542,7 +780,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_PikashowProvider",
@@ -565,7 +803,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_PlayFyProvider",
@@ -587,7 +825,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_PlayZTVProvider",
@@ -609,7 +847,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_RadioIndiaProvider",
@@ -631,7 +869,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_Rtally",
@@ -657,7 +895,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_SKTechProvider",
@@ -679,7 +917,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_SportzxProvider",
@@ -701,7 +939,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_StreamFlixProvider",
@@ -725,7 +963,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_SubscriptionManager",
@@ -748,7 +986,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_TamilDhoolProvider",
@@ -770,7 +1008,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_Tamilian",
@@ -792,7 +1030,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_TamilUltraProvider",
@@ -814,7 +1052,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_VegaMoviesProvider",
@@ -839,7 +1077,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_Watch32",
@@ -862,7 +1100,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     },
     {
       "id": "cs_repo_default_cnc_XonProvider",
@@ -886,214 +1124,7 @@
       "enabled": true,
       "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
       "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_cricfy_live_s1",
-      "name": "Cricfy Live Sports - Match Stream Server 1",
-      "internalName": "CricifyLiveS1",
-      "url": "https://cfyhljddgbkkufh82.top",
-      "category": "Cricfy Live Sports",
-      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ08h1gOe7MPxwehZBrbYKAUtjv22B6rAJ1kMkN-cea64Ka49KUyGU2lpTz&s=10",
-      "description": "Cricfy Official Live Cricket, Football & Events Feed 1",
-      "author": "CNCVerse / Cricfy",
-      "version": "7.6.0",
-      "language": "hi/en",
-      "tvTypes": [
-        "Live",
-        "Sports"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_cricfy_live_jiostar",
-      "name": "Cricfy Live Server 2 - JioStar & Cricket HD",
-      "internalName": "CricifyLiveJioStar",
-      "url": "https://cfymarkscanjiostar80.top",
-      "category": "Cricfy Live Sports",
-      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ7zqXTonSH_Xo--YxMlOacinf7mhLwuwSFFF1KJa8lGw&s=10",
-      "description": "High-speed JioStar & Cricket Live Sports stream mirror",
-      "author": "CNCVerse / Cricfy",
-      "version": "7.6.0",
-      "language": "hi/en/ta",
-      "tvTypes": [
-        "Live",
-        "Sports"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_cricfy_tsports",
-      "name": "Cricfy T-Sports HD Live Events",
-      "internalName": "CricifyTSports",
-      "url": "https://fifabangladesh2-xyz-ekkj.spidy.online/AYN/tsports.m3u",
-      "category": "Cricfy Live Sports",
-      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQI9T5vcm8wU-dLuaK5vBfoHpz8KL9Ru0aU1eoVaKNcqauxGtRTfvI1rGTA&s=10",
-      "description": "T-Sports & Bangladesh Live Cricket Events M3U Feed",
-      "author": "CNCVerse / Cricfy",
-      "version": "1.0",
-      "language": "bn/en",
-      "tvTypes": [
-        "Live",
-        "Sports"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_cricfy_epl",
-      "name": "Cricfy EPL & Football Live Hub",
-      "internalName": "CricifyEPL",
-      "url": "https://bdix.short.gy/EPLxBDIX/playlist.php",
-      "category": "Cricfy Live Sports",
-      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQS0OT2NFe9Jb4ofg_DrXx42EKLgyGnSGwoLg&usqp=CAU",
-      "description": "English Premier League & International Football Live playlist",
-      "author": "CNCVerse / Cricfy",
-      "version": "1.0",
-      "language": "en",
-      "tvTypes": [
-        "Live",
-        "Sports"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_sktech_live2",
-      "name": "SKTech Live Events & Sports M3U",
-      "internalName": "SKTechLive2",
-      "url": "https://fifabd.site/OPLLX7/LIVE2.m3u",
-      "category": "SKTech Live Events",
-      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQf7pkggfHJKj2R8O6ttuHxgv-vQVL03xUeAg&usqp=CAU",
-      "description": "SKTech Provider Live Tournament & Match Streams Playlist",
-      "author": "SKTech / NivinCNC",
-      "version": "3.4.0",
-      "language": "all",
-      "tvTypes": [
-        "Live",
-        "Sports",
-        "Events"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_sktech_store",
-      "name": "SKTech Premium Live Stream Hub",
-      "internalName": "SKTechStore",
-      "url": "https://matkeritnagurorxbxb.store",
-      "category": "SKTech Live Events",
-      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQfc5DoDgZ5r5s1_umhMp0UUBENdkOUdWWFcSAzv-EUxA&s",
-      "description": "SKTech high-availability live stream and event routing origin",
-      "author": "SKTech",
-      "version": "3.4.0",
-      "language": "all",
-      "tvTypes": [
-        "Live"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_sportzx_live",
-      "name": "Sportzx Official Sports TV Network",
-      "internalName": "SportzxNetwork",
-      "url": "https://sportzx.live",
-      "category": "Live Sports & Events",
-      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJ0QvfKyjAqcCOumIXjcuYg505GnaBeVk2lQ&usqp=CAU",
-      "description": "24/7 Live sports events, UFC, WWE, Cricket and Football",
-      "author": "Sportzx",
-      "version": "2.1.0",
-      "language": "en",
-      "tvTypes": [
-        "Live",
-        "Sports"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_playztv_live",
-      "name": "PlayZTV Live TV & Entertainment",
-      "internalName": "PlayZTVLive",
-      "url": "https://playztv2828.store",
-      "category": "Live TV & Events",
-      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWwYjMvB58DMLsL9Ii2fhvw6NBYvD1iVCjOMU8TXBLJt0eibLGOjoRkLJP&s=10",
-      "description": "PlayZTV live channels bouquet and television broadcasts",
-      "author": "PlayZTV",
-      "version": "1.8.0",
-      "language": "hi/ta",
-      "tvTypes": [
-        "Live"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_dish_vortex",
-      "name": "Dish Live TV & Sports Bouquet",
-      "internalName": "DishVortex",
-      "url": "https://dish.data-vortex.workers.dev?token=42e4f5-2d863b-3c37d8-7f3f51",
-      "category": "Live TV & Events",
-      "logo": "https://d229kpbsb5jevy.cloudfront.net/bott/v2/networks/circularimages/yupptv.png",
-      "description": "Direct Dish Indian live channels broadcast feed",
-      "author": "CNCVerse",
-      "version": "1.0",
-      "language": "all",
-      "tvTypes": [
-        "Live"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
-    },
-    {
-      "id": "cs_repo_default_cnc_tamilultra_live",
-      "name": "Tamil Ultra Live Entertainment",
-      "internalName": "TamilUltra",
-      "url": "https://tamilultra.co.uk",
-      "category": "Live TV & Events",
-      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRh5KeAyYdOyxaCWDPbiUsJW7Oy4v_7uFqf06rIwGxaWc6nQuNVqZ2Q_Qej&s=10",
-      "description": "Tamil Ultra Live television and broadcast stream feed",
-      "author": "TamilUltra",
-      "version": "2.0.0",
-      "language": "ta",
-      "tvTypes": [
-        "Live"
-      ],
-      "enabled": true,
-      "isLiveEvent": true,
-      "repoUrl": "https://raw.githubusercontent.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/refs/heads/builds/CNC.json",
-      "repoName": "CNCVerse CloudStream Official",
-      "updatedAt": "2026-10-27T13:14:28.868Z"
+      "updatedAt": "2026-10-30T10:18:15.861Z"
     }
   ]
 }

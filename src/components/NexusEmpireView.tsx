@@ -408,9 +408,17 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
                 <Radio className="w-3 h-3 text-amber-400 animate-pulse" />
                 <span>NEXUSEMPIRE ENGINE</span>
               </span>
-              <span className="px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-[10px] font-mono text-indigo-300">
-                AniTv &amp; StreamBox Native
-              </span>
+              <a
+                href="https://play.google.com/store/apps/details?id=com.anivortex.tv"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2.5 py-1 rounded-full bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400/30 text-[10px] font-mono text-indigo-300 flex items-center gap-1.5 transition-colors"
+                title="Download AniTV 4.0 on Google Play"
+              >
+                <Smartphone className="w-3 h-3 text-indigo-400" />
+                <span>AniTv 4.0 (com.anivortex.tv)</span>
+                <ExternalLink className="w-2.5 h-2.5 text-indigo-400" />
+              </a>
               <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[10px] font-mono text-emerald-300 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" />
                 <span>Zero Duplicate Streams</span>
@@ -611,15 +619,13 @@ export const NexusEmpireView: React.FC<NexusEmpireViewProps> = ({
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
 
-                    {item.isCustom && (
-                      <button
-                        onClick={(e) => handleDeleteItem(item.id, e)}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
-                        title="Delete stream"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => handleDeleteItem(item.id, e)}
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                      title="Delete stream section"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
