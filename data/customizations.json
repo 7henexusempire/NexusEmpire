@@ -7,7 +7,7 @@
       "url": "https://hjh-545.pages.dev/",
       "type": "remote",
       "enabled": true,
-      "lastSyncTime": "2026-10-30T10:18:11.304Z",
+      "lastSyncTime": "2026-10-30T10:20:36.642Z",
       "status": "success",
       "errorMessage": null,
       "channelCount": 1193
@@ -19,7 +19,7 @@
       "url": "https://plugxvipplaylist.lovable.app/api/playlist",
       "type": "remote",
       "enabled": true,
-      "lastSyncTime": "2026-10-30T10:18:13.621Z",
+      "lastSyncTime": "2026-10-30T10:20:39.567Z",
       "status": "success",
       "errorMessage": null,
       "channelCount": 1640
@@ -31,9 +31,9 @@
       "url": "https://stalkmax.7henexusempire.workers.dev/playlist.m3u?pass=Nexus07",
       "type": "remote",
       "enabled": true,
-      "lastSyncTime": "2026-10-30T09:23:06.690Z",
-      "status": "error",
-      "errorMessage": "This operation was aborted",
+      "lastSyncTime": "2026-10-30T10:20:47.474Z",
+      "status": "success",
+      "errorMessage": null,
       "channelCount": 10394
     },
     {
@@ -43,7 +43,7 @@
       "url": "https://p1stalk.7henexusempire.workers.dev/playlist.m3u?pass=Nexus07",
       "type": "remote",
       "enabled": true,
-      "lastSyncTime": "2026-10-30T10:15:37.048Z",
+      "lastSyncTime": "2026-10-30T10:20:57.113Z",
       "status": "success",
       "errorMessage": null,
       "channelCount": 5851
@@ -55,7 +55,7 @@
       "url": "https://server.lrl45.workers.dev/channel/raw?=m3u",
       "type": "remote",
       "enabled": true,
-      "lastSyncTime": "2026-10-30T10:15:38.584Z",
+      "lastSyncTime": "2026-10-30T10:21:06.509Z",
       "status": "success",
       "errorMessage": null,
       "channelCount": 5200
@@ -67,9 +67,9 @@
       "url": "https://p1stalk.7henexusempire.workers.dev/playlist.php?pass=Nexus07",
       "type": "remote",
       "enabled": true,
-      "lastSyncTime": "2026-10-30T10:14:53.959Z",
-      "status": "error",
-      "errorMessage": "HTTP 500: Internal Server Error",
+      "lastSyncTime": "2026-10-30T10:21:12.027Z",
+      "status": "success",
+      "errorMessage": null,
       "channelCount": 5851
     },
     {
@@ -79,7 +79,7 @@
       "url": "https://raw.githubusercontent.com/doctor-8trange/zyphx8/refs/heads/main/data/fancode.m3u",
       "type": "remote",
       "enabled": true,
-      "lastSyncTime": "2026-10-30T10:15:31.125Z",
+      "lastSyncTime": "2026-10-30T10:21:12.598Z",
       "status": "success",
       "errorMessage": null,
       "channelCount": 8
@@ -91,7 +91,7 @@
       "url": "https://raw.githubusercontent.com/doctor-8trange/zyphora/refs/heads/main/data/sony.m3u",
       "type": "remote",
       "enabled": true,
-      "lastSyncTime": "2026-10-30T10:15:30.582Z",
+      "lastSyncTime": "2026-10-30T10:21:13.138Z",
       "status": "success",
       "errorMessage": null,
       "channelCount": 5
@@ -103,7 +103,7 @@
       "url": "https://raw.githubusercontent.com/doctor-8trange/quarnex/refs/heads/main/data/zee5.m3u",
       "type": "remote",
       "enabled": true,
-      "lastSyncTime": "2026-10-30T10:15:31.681Z",
+      "lastSyncTime": "2026-10-30T10:21:13.699Z",
       "status": "success",
       "errorMessage": null,
       "channelCount": 0
@@ -294,7 +294,7 @@
       "category": "Master Bouquet",
       "channelCount": 23786,
       "status": "ready",
-      "lastUpdated": "2026-10-30T10:18:13.636Z",
+      "lastUpdated": "2026-10-30T10:21:13.707Z",
       "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
       "description": "Comprehensive catalog including all network streams for AniTv & StreamBox.",
       "enabled": true
@@ -309,7 +309,7 @@
       "category": "TV Channels",
       "channelCount": 23786,
       "status": "ready",
-      "lastUpdated": "2026-10-30T10:18:13.761Z",
+      "lastUpdated": "2026-10-30T10:21:13.828Z",
       "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
       "description": "All live TV channels aggregated for seamless viewing.",
       "enabled": true
@@ -324,7 +324,7 @@
       "category": "Sony Entertainment",
       "channelCount": 282,
       "status": "ready",
-      "lastUpdated": "2026-10-30T10:18:13.893Z",
+      "lastUpdated": "2026-10-30T10:21:13.948Z",
       "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
       "description": "Sony Ten 1/2/3/4/5 HD, Sony SAB, Sony MAX HD streams.",
       "enabled": true
@@ -339,7 +339,7 @@
       "category": "🔴 All Live Match Events Schedule 🔴",
       "channelCount": 3975,
       "status": "ready",
-      "lastUpdated": "2026-10-30T10:18:13.908Z",
+      "lastUpdated": "2026-10-30T10:21:13.961Z",
       "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
       "description": "🔴 All Live Match Events Schedule 🔴",
       "enabled": true
@@ -354,7 +354,7 @@
       "category": "Cricket Exclusive",
       "channelCount": 65,
       "status": "ready",
-      "lastUpdated": "2026-10-30T10:18:13.936Z",
+      "lastUpdated": "2026-10-30T10:21:13.989Z",
       "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
       "description": "Willow TV broadcast channel for AniTv & Streambox.",
       "enabled": true
@@ -369,7 +369,7 @@
       "category": "🔞18+ Premium Quality Content 🌚",
       "channelCount": 157,
       "status": "ready",
-      "lastUpdated": "2026-10-30T10:18:13.947Z",
+      "lastUpdated": "2026-10-30T10:21:13.999Z",
       "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
       "description": "📌 Working Only Apk Version 4.0.0",
       "enabled": true
@@ -384,7 +384,7 @@
       "category": "Entertainment & Reality",
       "channelCount": 254,
       "status": "ready",
-      "lastUpdated": "2026-10-30T10:18:13.958Z",
+      "lastUpdated": "2026-10-30T10:21:14.012Z",
       "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
       "description": "Bigg Boss 24/7 Live streams and reality broadcasts.",
       "enabled": true
@@ -399,7 +399,7 @@
       "category": "Zee Entertainment",
       "channelCount": 635,
       "status": "ready",
-      "lastUpdated": "2026-10-30T10:18:13.975Z",
+      "lastUpdated": "2026-10-30T10:21:14.025Z",
       "logo": "https://ik.imagekit.io/7henexusempire/nexusprime.png",
       "description": "Zee TV HD, Zee Cinema, Zee News, &TV & Zing live channels.",
       "enabled": true

@@ -554,16 +554,44 @@ class PlaylistService {
       } else {
         console.log(`[Cartel 187] Fetching "${src.name}" from ${src.url}...`);
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
 
-        const response = await fetch(src.url, {
-          headers: {
-            'User-Agent': this.settings.userAgent || DEFAULT_SETTINGS.userAgent,
-            'Accept': '*/*',
-          },
-          signal: controller.signal,
-          redirect: 'follow',
-        });
+        let response: Response;
+        try {
+          response = await fetch(src.url, {
+            headers: {
+              'User-Agent': this.settings.userAgent || DEFAULT_SETTINGS.userAgent,
+              'Accept': '*/*',
+              'Accept-Encoding': 'gzip, deflate, br',
+            },
+            signal: controller.signal,
+            redirect: 'follow',
+          });
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutId);
+          if (src.id === 'stalkmax' && (fetchErr.name === 'AbortError' || fetchErr.message?.includes('aborted') || fetchErr.message?.includes('timeout'))) {
+            console.log(`[Cartel 187] StalkMax Nexus worker timed out, attempting failover endpoint...`);
+            const fallbackController = new AbortController();
+            const fbTimeout = setTimeout(() => fallbackController.abort(), 30000);
+            try {
+              response = await fetch('https://p1stalk.7henexusempire.workers.dev/playlist.m3u?pass=Nexus07', {
+                headers: {
+                  'User-Agent': this.settings.userAgent || DEFAULT_SETTINGS.userAgent,
+                  'Accept': '*/*',
+                  'Accept-Encoding': 'gzip, deflate, br',
+                },
+                signal: fallbackController.signal,
+                redirect: 'follow',
+              });
+              clearTimeout(fbTimeout);
+            } catch (fbErr) {
+              clearTimeout(fbTimeout);
+              throw fetchErr;
+            }
+          } else {
+            throw fetchErr;
+          }
+        }
 
         clearTimeout(timeoutId);
 
@@ -601,6 +629,7 @@ class PlaylistService {
         src.status = 'success';
         src.errorMessage = null;
         src.channelCount = existingCount;
+        console.log(`[Cartel 187] Retained ${existingCount} cached channels for "${src.name}"`);
       } else {
         src.status = 'error';
         src.errorMessage = err.message || 'Fetch failed';
