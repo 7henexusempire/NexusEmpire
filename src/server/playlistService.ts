@@ -461,12 +461,8 @@ class PlaylistService {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
-    const hasAnyChannels = Object.values(this.channelsBySource).some((arr) => arr.length > 0);
-    if (!hasAnyChannels) {
-      await this.fetchAllSources();
-    } else {
-      this.fetchAllSources().catch((e) => console.error('Initial background sync error:', e));
-    }
+    // Run fetch in background so server startup and APIs respond instantly (<50ms)
+    this.fetchAllSources().catch((e) => console.error('Initial background sync error:', e));
 
     this.scheduleNextSync();
   }
@@ -515,7 +511,7 @@ class PlaylistService {
       } else {
         console.log(`[Cartel 187] Fetching "${src.name}" from ${src.url}...`);
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
         const response = await fetch(src.url, {
           headers: {
@@ -570,17 +566,23 @@ class PlaylistService {
 
     this.isSyncingAll = true;
     const enabledSources = this.sources.filter((s) => s.enabled);
-    console.log(`[Cartel 187] Starting sync for ${enabledSources.length} active sources...`);
+    console.log(`[Cartel 187] Starting parallel sync for ${enabledSources.length} active sources...`);
 
     let totalSynced = 0;
     const errors: string[] = [];
 
-    for (const src of enabledSources) {
-      const result = await this.fetchSingleSource(src.id);
-      if (result.success) {
-        totalSynced += result.count;
+    const results = await Promise.allSettled(
+      enabledSources.map((src) => this.fetchSingleSource(src.id))
+    );
+
+    for (let i = 0; i < results.length; i++) {
+      const res = results[i];
+      const src = enabledSources[i];
+      if (res.status === 'fulfilled' && res.value.success) {
+        totalSynced += res.value.count;
       } else {
-        errors.push(`${src.name}: ${result.message}`);
+        const msg = res.status === 'fulfilled' ? res.value.message : (res.reason?.message || 'Failed');
+        errors.push(`${src.name}: ${msg}`);
       }
     }
 

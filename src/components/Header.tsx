@@ -22,6 +22,8 @@ import { NexusLogo } from './NexusLogo';
 export type AppTab =
   | 'channels'
   | 'playlists'
+  | 'nexusprime'
+  | 'nexusevents'
   | 'nexusempire'
   | 'aninexus'
   | 'rebuild'
@@ -91,6 +93,8 @@ export const Header: React.FC<HeaderProps> = ({
   const tabs: { id: AppTab; label: string; icon: React.ReactNode; badge?: string }[] = [
     { id: 'channels', label: 'All Streams', icon: <Tv className="w-3.5 h-3.5" /> },
     { id: 'playlists', label: 'Playlists', icon: <ListMusic className="w-3.5 h-3.5 text-cyan-400" />, badge: 'HUB' },
+    { id: 'nexusprime', label: 'Nexus Prime', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" />, badge: 'VIP' },
+    { id: 'nexusevents', label: 'Nexus Events', icon: <Trophy className="w-3.5 h-3.5 text-rose-400" />, badge: 'LIVE' },
     { id: 'nexusempire', label: 'Nexus Empire', icon: <Radio className="w-3.5 h-3.5 text-amber-400" /> },
     { id: 'duplicates', label: 'AI Deduplicator', icon: <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />, badge: 'AI' },
     { id: 'rebuild', label: 'Nexus Rebuild', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" />, badge: 'PRO' },

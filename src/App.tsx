@@ -16,6 +16,8 @@ import { ChannelList } from './components/ChannelList';
 import { GroupManager } from './components/GroupManager';
 import { NexusEmpireView } from './components/NexusEmpireView';
 import { NexusRebuildView } from './components/NexusRebuildView';
+import { NexusPrimeView } from './components/NexusPrimeView';
+import { NexusEventsView } from './components/NexusEventsView';
 import { FanCodeView } from './components/FanCodeView';
 import { SonyLivView } from './components/SonyLivView';
 import { Zee5View } from './components/Zee5View';
@@ -614,6 +616,22 @@ export default function App() {
               setActiveTab('channels');
               fetchChannels(1, selectedSource, searchQuery, groupName, statusFilter);
             }}
+          />
+        )}
+
+        {activeTab === 'nexusprime' && (
+          <NexusPrimeView
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
+          />
+        )}
+
+        {activeTab === 'nexusevents' && (
+          <NexusEventsView
+            onNotify={notify}
+            publicBaseUrl={settings.publicBaseUrl}
+            onPreviewChannel={(ch) => setPreviewingChannel(ch)}
           />
         )}
 

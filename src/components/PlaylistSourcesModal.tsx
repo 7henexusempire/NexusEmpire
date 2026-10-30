@@ -16,6 +16,7 @@ import {
   FileCode,
 } from 'lucide-react';
 import { PlaylistSource } from '../types';
+import { getCleanOrigin } from '../utils/urlUtils';
 
 interface PlaylistSourcesModalProps {
   sources: PlaylistSource[];
@@ -90,9 +91,19 @@ export const PlaylistSourcesModal: React.FC<PlaylistSourcesModalProps> = ({
   };
 
   const copyUrl = (slug: string) => {
-    const url = `${window.location.origin}/api/playlist/${slug}.m3u`;
+    const origin = getCleanOrigin();
+    const url = `${origin}/api/playlist/${slug}.m3u`;
     navigator.clipboard.writeText(url);
     setCopiedSlug(slug);
+    setTimeout(() => setCopiedSlug(null), 2500);
+  };
+
+  const copyDirectUrl = (slug: string) => {
+    const origin = getCleanOrigin();
+    const shortSlug = slug.replace('-m3u', '');
+    const url = `${origin}/${shortSlug}.m3u`;
+    navigator.clipboard.writeText(url);
+    setCopiedSlug(`direct_${slug}`);
     setTimeout(() => setCopiedSlug(null), 2500);
   };
 
@@ -220,7 +231,9 @@ export const PlaylistSourcesModal: React.FC<PlaylistSourcesModalProps> = ({
               const isSyncing = syncingId === s.id || s.status === 'fetching';
               const isEditing = editingId === s.id;
               const slug = s.slug || s.id;
-              const dedicatedUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/playlist/${slug}.m3u`;
+              const cleanOrigin = getCleanOrigin();
+              const dedicatedUrl = `${cleanOrigin}/api/playlist/${slug}.m3u`;
+              const cleanShortUrl = `${cleanOrigin}/${slug.replace('-m3u', '')}.m3u`;
 
               return (
                 <div
@@ -343,40 +356,65 @@ export const PlaylistSourcesModal: React.FC<PlaylistSourcesModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Dedicated Endpoint Link */}
-                      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[10px] font-mono text-slate-500 uppercase shrink-0">
-                            IPTV Link:
-                          </span>
-                          <span className="text-xs text-amber-300 font-mono truncate select-all">
-                            {dedicatedUrl}
-                          </span>
+                      {/* Endpoints Links */}
+                      <div className="space-y-1.5">
+                        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[10px] font-mono text-cyan-400 font-bold uppercase shrink-0">
+                              Direct M3U:
+                            </span>
+                            <span className="text-xs text-cyan-300 font-mono truncate select-all">
+                              {cleanShortUrl}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => copyDirectUrl(slug)}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-700/60 hover:bg-cyan-600 text-white text-[11px] font-semibold transition-colors"
+                              title="Copy Direct M3U URL"
+                            >
+                              {copiedSlug === `direct_${slug}` ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-300" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                              <span>{copiedSlug === `direct_${slug}` ? 'Copied' : 'Copy'}</span>
+                            </button>
+                            <a
+                              href={cleanShortUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                              title="Open in new tab"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[9px] font-mono text-slate-500 uppercase shrink-0">
+                              API Relay:
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-mono truncate select-all">
+                              {dedicatedUrl}
+                            </span>
+                          </div>
+
                           <button
                             onClick={() => copyUrl(slug)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] transition-colors"
-                            title="Copy M3U URL"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] transition-colors shrink-0"
+                            title="Copy API M3U URL"
                           >
                             {copiedSlug === slug ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <Check className="w-3 h-3 text-emerald-400" />
                             ) : (
-                              <Copy className="w-3.5 h-3.5" />
+                              <Copy className="w-3 h-3" />
                             )}
                             <span>{copiedSlug === slug ? 'Copied' : 'Copy'}</span>
                           </button>
-
-                          <a
-                            href={`/api/playlist/${slug}.m3u`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
-                            title="Open in new tab"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
                         </div>
                       </div>
 

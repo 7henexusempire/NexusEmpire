@@ -10,6 +10,8 @@ import { cloudstreamService } from './src/server/cloudstreamService';
 import { skystreamService } from './src/server/skystreamService';
 import { stremioNuvioService } from './src/server/stremioNuvioService';
 import { eventsService } from './src/server/eventsService';
+import { primeService } from './src/server/primeService';
+import { nexusEventsService } from './src/server/nexusEventsService';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -352,37 +354,323 @@ app.delete('/api/rebuilt/:id', (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/rebuilt/:slug.m3u', (req: Request, res: Response) => {
+function serveRebuiltM3U(req: Request, res: Response, slug: string) {
   const allChannels = playlistService.getAllChannels('all');
-  const m3u = rebuildService.generateM3U(req.params.slug, allChannels);
+  const m3u = rebuildService.generateM3U(slug, allChannels);
+  const cleanContent = m3u.replace(/:8443/g, '').replace(/:3000/g, '');
   res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
-  res.setHeader('Content-Disposition', `inline; filename="${req.params.slug}.m3u"`);
+  res.setHeader('Content-Disposition', `inline; filename="${slug}.m3u"`);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  return res.send(m3u);
-});
+  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+  return res.send(cleanContent);
+}
 
-app.get('/api/rebuilt/:slug.json', (req: Request, res: Response) => {
-  const p = rebuildService.getById(req.params.slug);
-  if (!p) return res.status(404).json({ error: 'Playlist not found' });
+function serveRebuiltJSON(req: Request, res: Response, slug: string) {
+  const p = rebuildService.getById(slug);
+  if (!p) return res.status(404).json({ error: 'Rebuilt playlist not found' });
   const allChannels = playlistService.getAllChannels('all');
   const channelMap = new Map(allChannels.map((c) => [c.id, c]));
   const result: any = { ...p, categories: {} };
   for (const [cat, ids] of Object.entries(p.customCategories)) {
     result.categories[cat] = ids.map((id) => channelMap.get(id)).filter(Boolean);
   }
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   return res.json(result);
+}
+
+function servePrimeM3U(req: Request, res: Response, slug: string) {
+  const m3u = primeService.generateM3U(slug);
+  const cleanContent = m3u.replace(/:8443/g, '').replace(/:3000/g, '');
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', `inline; filename="${slug}.m3u"`);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+  return res.send(cleanContent);
+}
+
+function servePrimeJSON(req: Request, res: Response, slug: string) {
+  const data = primeService.generateJSON(slug);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.json(data);
+}
+
+function serveNexusEventsM3U(req: Request, res: Response, slug?: string) {
+  const m3u = nexusEventsService.generateM3U(slug);
+  const cleanContent = m3u.replace(/:8443/g, '').replace(/:3000/g, '');
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+  res.setHeader('Content-Disposition', `inline; filename="${slug || 'events'}.m3u"`);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+  return res.send(cleanContent);
+}
+
+function serveNexusEventsJSON(req: Request, res: Response, slug?: string) {
+  const data = nexusEventsService.generateJSON(slug);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.json(data);
+}
+
+// Rebuild Endpoints (M3U & JSON)
+app.get('/rebuild/:slug.m3u', (req, res) => serveRebuiltM3U(req, res, req.params.slug));
+app.get('/rebuild/:slug.m3u8', (req, res) => serveRebuiltM3U(req, res, req.params.slug));
+app.get('/rebuild/:slug.json', (req, res) => serveRebuiltJSON(req, res, req.params.slug));
+app.get('/api/rebuild/:slug.m3u', (req, res) => serveRebuiltM3U(req, res, req.params.slug));
+app.get('/api/rebuild/:slug.m3u8', (req, res) => serveRebuiltM3U(req, res, req.params.slug));
+app.get('/api/rebuild/:slug.json', (req, res) => serveRebuiltJSON(req, res, req.params.slug));
+app.get('/api/rebuilt/:slug.m3u', (req, res) => serveRebuiltM3U(req, res, req.params.slug));
+app.get('/api/rebuilt/:slug.m3u8', (req, res) => serveRebuiltM3U(req, res, req.params.slug));
+app.get('/api/rebuilt/:slug.json', (req, res) => serveRebuiltJSON(req, res, req.params.slug));
+
+// ============================================================
+// 2C. NEXUS PRIME MASTER PLAYLIST ENDPOINTS
+// ============================================================
+app.get('/api/nexusprime', (req: Request, res: Response) => {
+  return res.json(primeService.getAll());
 });
+
+app.post('/api/nexusprime', (req: Request, res: Response) => {
+  try {
+    const created = primeService.create(req.body);
+    return res.json({ success: true, playlist: created });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/nexusprime/:id', (req: Request, res: Response) => {
+  try {
+    const updated = primeService.update(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: 'Playlist not found' });
+    return res.json({ success: true, playlist: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/nexusprime/:id', (req: Request, res: Response) => {
+  try {
+    const ok = primeService.delete(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nexusprime/:id/streams', (req: Request, res: Response) => {
+  try {
+    const added = primeService.addStream(req.params.id, req.body);
+    return res.json({ success: true, stream: added });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nexusprime/:id/streams/bulk', (req: Request, res: Response) => {
+  try {
+    const count = primeService.addMultipleStreams(req.params.id, req.body.streams || []);
+    return res.json({ success: true, addedCount: count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/nexusprime/:id/streams/:streamId', (req: Request, res: Response) => {
+  try {
+    const ok = primeService.updateStream(req.params.id, req.params.streamId, req.body);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/nexusprime/:id/streams/:streamId', (req: Request, res: Response) => {
+  try {
+    const ok = primeService.removeStream(req.params.id, req.params.streamId);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nexusprime/:id/bulk-category-logo', (req: Request, res: Response) => {
+  try {
+    const { category, logoUrl } = req.body;
+    const count = primeService.bulkApplyCategoryLogo(req.params.id, category, logoUrl);
+    return res.json({ success: true, updatedCount: count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nexusprime/:id/bulk-all-logo', (req: Request, res: Response) => {
+  try {
+    const { logoUrl } = req.body;
+    const count = primeService.bulkApplyAllLogo(req.params.id, logoUrl);
+    return res.json({ success: true, updatedCount: count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/nexusprime/all.m3u', (req, res) => servePrimeM3U(req, res, 'nexus-prime'));
+app.get('/nexusprime/all.m3u8', (req, res) => servePrimeM3U(req, res, 'nexus-prime'));
+app.get('/nexusprime/:slug.m3u', (req, res) => servePrimeM3U(req, res, req.params.slug));
+app.get('/nexusprime/:slug.m3u8', (req, res) => servePrimeM3U(req, res, req.params.slug));
+app.get('/nexusprime/:slug.json', (req, res) => servePrimeJSON(req, res, req.params.slug));
+app.get('/api/nexusprime/:slug.m3u', (req, res) => servePrimeM3U(req, res, req.params.slug));
+app.get('/api/nexusprime/:slug.m3u8', (req, res) => servePrimeM3U(req, res, req.params.slug));
+app.get('/api/nexusprime/:slug.json', (req, res) => servePrimeJSON(req, res, req.params.slug));
+
+// ============================================================
+// 2D. NEXUS EVENTS MATCH & TOURNAMENT AGGREGATOR ENDPOINTS
+// ============================================================
+app.get('/api/nexus-events', (req: Request, res: Response) => {
+  return res.json(nexusEventsService.getAll());
+});
+
+app.post('/api/nexus-events', (req: Request, res: Response) => {
+  try {
+    const created = nexusEventsService.create(req.body);
+    return res.json({ success: true, match: created });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/nexus-events/:id', (req: Request, res: Response) => {
+  try {
+    const updated = nexusEventsService.update(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: 'Event not found' });
+    return res.json({ success: true, match: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/nexus-events/:id', (req: Request, res: Response) => {
+  try {
+    const ok = nexusEventsService.delete(req.params.id);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nexus-events/:id/streams', (req: Request, res: Response) => {
+  try {
+    const added = nexusEventsService.addStreamToMatch(req.params.id, req.body);
+    return res.json({ success: true, stream: added });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/nexus-events/:id/streams/:streamId', (req: Request, res: Response) => {
+  try {
+    const ok = nexusEventsService.removeStreamFromMatch(req.params.id, req.params.streamId);
+    return res.json({ success: ok });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nexus-events/:id/bulk-logo', (req: Request, res: Response) => {
+  try {
+    const { logoUrl } = req.body;
+    const count = nexusEventsService.bulkApplyLogoToMatchStreams(req.params.id, logoUrl);
+    return res.json({ success: true, updatedCount: count });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/events/all.m3u', (req, res) => serveNexusEventsM3U(req, res, 'all'));
+app.get('/events/all.m3u8', (req, res) => serveNexusEventsM3U(req, res, 'all'));
+app.get('/events/all.json', (req, res) => serveNexusEventsJSON(req, res, 'all'));
+app.get('/events/:slug.m3u', (req, res) => serveNexusEventsM3U(req, res, req.params.slug));
+app.get('/events/:slug.m3u8', (req, res) => serveNexusEventsM3U(req, res, req.params.slug));
+app.get('/events/:slug.json', (req, res) => serveNexusEventsJSON(req, res, req.params.slug));
+app.get('/api/nexus-events/:slug.m3u', (req, res) => serveNexusEventsM3U(req, res, req.params.slug));
+app.get('/api/nexus-events/:slug.m3u8', (req, res) => serveNexusEventsM3U(req, res, req.params.slug));
+app.get('/api/nexus-events/:slug.json', (req, res) => serveNexusEventsJSON(req, res, req.params.slug));
 
 // ============================================================
 // 3. INDIVIDUAL PLAYLIST ENDPOINTS (by custom slug or ID, e.g. /api/playlist/nexus-vip.m3u)
 // ============================================================
-app.get('/api/playlist/:slug.m3u', (req, res) => serveM3U(req, res, req.params.slug));
-app.get('/api/playlist/:slug.m3u8', (req, res) => serveM3U(req, res, req.params.slug));
-app.get('/playlist/:slug.m3u', (req, res) => serveM3U(req, res, req.params.slug));
-app.get('/playlist/:slug.m3u8', (req, res) => serveM3U(req, res, req.params.slug));
+app.get('/api/playlist/:slug.m3u', (req, res) => {
+  const { slug } = req.params;
+  if (slug === 'all') return serveM3U(req, res, 'all');
+  if (slug === 'fancode' || slug === 'fancode-m3u') return serveEventM3U('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony' || slug === 'sony-m3u') return serveEventM3U('sonyliv', res);
+  if (slug === 'zee5' || slug === 'zee5-m3u') return serveEventM3U('zee5', res);
+  if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
+  if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
+  if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  return serveM3U(req, res, slug);
+});
 
-app.get('/api/playlist/:slug.json', (req, res) => serveJSON(req, res, req.params.slug));
-app.get('/playlist/:slug.json', (req, res) => serveJSON(req, res, req.params.slug));
+app.get('/api/playlist/:slug.m3u8', (req, res) => {
+  const { slug } = req.params;
+  if (slug === 'all') return serveM3U(req, res, 'all');
+  if (slug === 'fancode' || slug === 'fancode-m3u') return serveEventM3U('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony' || slug === 'sony-m3u') return serveEventM3U('sonyliv', res);
+  if (slug === 'zee5' || slug === 'zee5-m3u') return serveEventM3U('zee5', res);
+  if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
+  if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
+  if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  return serveM3U(req, res, slug);
+});
+
+app.get('/playlist/:slug.m3u', (req, res) => {
+  const { slug } = req.params;
+  if (slug === 'all') return serveM3U(req, res, 'all');
+  if (slug === 'fancode' || slug === 'fancode-m3u') return serveEventM3U('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony' || slug === 'sony-m3u') return serveEventM3U('sonyliv', res);
+  if (slug === 'zee5' || slug === 'zee5-m3u') return serveEventM3U('zee5', res);
+  if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
+  if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
+  if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  return serveM3U(req, res, slug);
+});
+
+app.get('/playlist/:slug.m3u8', (req, res) => {
+  const { slug } = req.params;
+  if (slug === 'all') return serveM3U(req, res, 'all');
+  if (slug === 'fancode' || slug === 'fancode-m3u') return serveEventM3U('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony' || slug === 'sony-m3u') return serveEventM3U('sonyliv', res);
+  if (slug === 'zee5' || slug === 'zee5-m3u') return serveEventM3U('zee5', res);
+  if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
+  if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
+  if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
+  return serveM3U(req, res, slug);
+});
+
+app.get('/api/playlist/:slug.json', (req, res) => {
+  const { slug } = req.params;
+  if (slug === 'all') return serveJSON(req, res, 'all');
+  if (slug === 'fancode' || slug === 'fancode-m3u') return serveEventJSON('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony' || slug === 'sony-m3u') return serveEventJSON('sonyliv', res);
+  if (slug === 'zee5' || slug === 'zee5-m3u') return serveEventJSON('zee5', res);
+  if (rebuildService.getById(slug)) return serveRebuiltJSON(req, res, slug);
+  if (primeService.getById(slug)) return servePrimeJSON(req, res, slug);
+  if (nexusEventsService.getById(slug)) return serveNexusEventsJSON(req, res, slug);
+  return serveJSON(req, res, slug);
+});
+
+app.get('/playlist/:slug.json', (req, res) => {
+  const { slug } = req.params;
+  if (slug === 'all') return serveJSON(req, res, 'all');
+  if (slug === 'fancode' || slug === 'fancode-m3u') return serveEventJSON('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony' || slug === 'sony-m3u') return serveEventJSON('sonyliv', res);
+  if (slug === 'zee5' || slug === 'zee5-m3u') return serveEventJSON('zee5', res);
+  if (rebuildService.getById(slug)) return serveRebuiltJSON(req, res, slug);
+  if (primeService.getById(slug)) return servePrimeJSON(req, res, slug);
+  if (nexusEventsService.getById(slug)) return serveNexusEventsJSON(req, res, slug);
+  return serveJSON(req, res, slug);
+});
 
 // Explicit event root shortcuts
 app.get('/fancode.m3u', (req, res) => serveEventM3U('fancode', res));
@@ -404,37 +692,46 @@ app.get('/zee5.json', (req, res) => serveEventJSON('zee5', res));
 // Direct root playlist alias
 app.get('/:slug.m3u', (req, res, next) => {
   const { slug } = req.params;
-  if (slug === 'fancode') return serveEventM3U('fancode', res);
-  if (slug === 'sonyliv' || slug === 'sony') return serveEventM3U('sonyliv', res);
-  if (slug === 'zee5') return serveEventM3U('zee5', res);
+  if (slug === 'fancode' || slug === 'fancode-m3u') return serveEventM3U('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony' || slug === 'sony-m3u') return serveEventM3U('sonyliv', res);
+  if (slug === 'zee5' || slug === 'zee5-m3u') return serveEventM3U('zee5', res);
   if (slug === 'cloudstream') return serveCloudStreamM3U(req, res);
   if (slug === 'skystream') return serveSkyStreamM3U(req, res);
   if (slug === 'stremio' || slug === 'nuvio-stremio') return serveStremioM3U(req, res);
   if (slug === 'cncverse') return serveCNCVerseM3U(req, res);
-  if (['api', 'health', 'assets', 'cloudstream'].includes(slug)) return next();
+  if (['api', 'health', 'assets', 'favicon', 'events', 'rebuild', 'nexusprime'].includes(slug)) return next();
+  if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
+  if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
+  if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
   return serveM3U(req, res, slug);
 });
 
 app.get('/:slug.m3u8', (req, res, next) => {
   const { slug } = req.params;
-  if (slug === 'fancode') return serveEventM3U('fancode', res);
-  if (slug === 'sonyliv' || slug === 'sony') return serveEventM3U('sonyliv', res);
-  if (slug === 'zee5') return serveEventM3U('zee5', res);
+  if (slug === 'fancode' || slug === 'fancode-m3u') return serveEventM3U('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony' || slug === 'sony-m3u') return serveEventM3U('sonyliv', res);
+  if (slug === 'zee5' || slug === 'zee5-m3u') return serveEventM3U('zee5', res);
   if (slug === 'cloudstream') return serveCloudStreamM3U(req, res);
   if (slug === 'skystream') return serveSkyStreamM3U(req, res);
   if (slug === 'stremio' || slug === 'nuvio-stremio') return serveStremioM3U(req, res);
   if (slug === 'cncverse') return serveCNCVerseM3U(req, res);
-  if (['api', 'health', 'assets', 'cloudstream'].includes(slug)) return next();
+  if (['api', 'health', 'assets', 'favicon', 'events', 'rebuild', 'nexusprime'].includes(slug)) return next();
+  if (rebuildService.getById(slug)) return serveRebuiltM3U(req, res, slug);
+  if (primeService.getById(slug)) return servePrimeM3U(req, res, slug);
+  if (nexusEventsService.getById(slug)) return serveNexusEventsM3U(req, res, slug);
   return serveM3U(req, res, slug);
 });
 
 app.get('/:slug.json', (req, res, next) => {
   const { slug } = req.params;
-  if (slug === 'fancode') return serveEventJSON('fancode', res);
-  if (slug === 'sonyliv' || slug === 'sony') return serveEventJSON('sonyliv', res);
-  if (slug === 'zee5') return serveEventJSON('zee5', res);
+  if (slug === 'fancode' || slug === 'fancode-m3u') return serveEventJSON('fancode', res);
+  if (slug === 'sonyliv' || slug === 'sony' || slug === 'sony-m3u') return serveEventJSON('sonyliv', res);
+  if (slug === 'zee5' || slug === 'zee5-m3u') return serveEventJSON('zee5', res);
   if (slug === 'cloudstream') return serveCloudStreamJSON(req, res);
-  if (['api', 'health', 'assets', 'cloudstream'].includes(slug)) return next();
+  if (['api', 'health', 'assets', 'favicon', 'events', 'rebuild', 'nexusprime'].includes(slug)) return next();
+  if (rebuildService.getById(slug)) return serveRebuiltJSON(req, res, slug);
+  if (primeService.getById(slug)) return servePrimeJSON(req, res, slug);
+  if (nexusEventsService.getById(slug)) return serveNexusEventsJSON(req, res, slug);
   return serveJSON(req, res, slug);
 });
 

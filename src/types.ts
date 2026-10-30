@@ -145,3 +145,55 @@ export interface PrefixSuffixConfig {
   startChannelNumber?: number;
   enableChannelNumbering?: boolean;
 }
+
+export interface NexusPrimeStream {
+  id: string;
+  name: string;
+  url: string;
+  groupTitle: string;
+  logo?: string;
+  groupLogo?: string;
+  tvgId?: string;
+  tvgName?: string;
+  tvgChno?: string;
+  enabled?: boolean;
+  sourceOrigin?: string;
+}
+
+export interface NexusPrimePlaylist {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  streams: NexusPrimeStream[];
+  groupLogos?: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NexusEventStream {
+  id: string;
+  title: string;
+  url: string;
+  serverLabel: string;
+  logo?: string;
+  quality?: string;
+  sourceService?: string;
+  enabled?: boolean;
+}
+
+export interface NexusEventMatch {
+  id: string;
+  slug: string;
+  title: string;
+  sport: string;
+  category: string;
+  status: 'LIVE' | 'UPCOMING' | 'FINISHED';
+  startTime?: string;
+  poster?: string;
+  logo?: string;
+  streams: NexusEventStream[];
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}

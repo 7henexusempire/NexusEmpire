@@ -110,7 +110,26 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({ onNotify, onOpenSo
   const loadPlaylistChannels = async (playlist: DetailPlaylist) => {
     setIsLoadingChannels(true);
     try {
-      if (playlist.id === 'fancode-hub') {
+      if (playlist.id === 'nexusprime-master') {
+        const res = await fetch('/api/nexusprime');
+        if (res.ok) {
+          const list = await res.json();
+          setPlaylistChannels(list[0]?.streams || []);
+        }
+      } else if (playlist.id === 'nexusevents-live') {
+        const res = await fetch('/api/nexus-events');
+        if (res.ok) {
+          const list = await res.json();
+          const allFeeds = list.flatMap((m: any) =>
+            m.streams.map((s: any) => ({
+              ...s,
+              name: `[${m.status}] ${m.title} (${s.serverLabel})`,
+              groupTitle: `${m.sport} - ${m.category}`,
+            }))
+          );
+          setPlaylistChannels(allFeeds);
+        }
+      } else if (playlist.id === 'fancode-hub') {
         const res = await fetch('/api/events?service=fancode');
         if (res.ok) setPlaylistChannels(await res.json());
       } else if (playlist.id === 'sonyliv-hub') {
@@ -395,6 +414,26 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({ onNotify, onOpenSo
       badge: 'ALL IN ONE',
       badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
       description: 'Unified M3U containing all active streams, channels & live sources with zero duplicates.',
+    },
+    {
+      id: 'nexusprime-master',
+      name: 'Nexus Prime Master M3U',
+      url: `${cleanOrigin}/nexusprime/all.m3u`,
+      slug: 'nexus-prime',
+      icon: <Sparkles className="w-5 h-5 text-amber-400" />,
+      badge: 'NEXUS PRIME',
+      badgeBg: 'bg-amber-500/25 text-amber-200 border-amber-400/50',
+      description: 'Custom curated master playlist with personalized channel bouquets and custom logos.',
+    },
+    {
+      id: 'nexusevents-live',
+      name: 'Nexus Events Live Sports M3U',
+      url: `${cleanOrigin}/events/all.m3u`,
+      slug: 'all',
+      icon: <Trophy className="w-5 h-5 text-rose-400" />,
+      badge: 'LIVE MATCHES',
+      badgeBg: 'bg-rose-500/25 text-rose-300 border-rose-400/50',
+      description: 'Multi-server live sports event aggregator for IPL, Premier League, UEFA & tournaments.',
     },
     {
       id: 'nexusempire-vip',

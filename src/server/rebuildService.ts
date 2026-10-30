@@ -35,13 +35,37 @@ class RebuildService {
       if (fs.existsSync(REBUILD_FILE)) {
         const raw = fs.readFileSync(REBUILD_FILE, 'utf-8');
         const data = JSON.parse(raw);
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           this.playlists = data;
+          return;
         }
       }
     } catch (err) {
       console.error('Failed to load rebuilt playlists:', err);
     }
+
+    // Default pre-seeded rebuilt playlist
+    this.playlists = [
+      {
+        id: 'rebuild_vip_master',
+        slug: 'nexus-rebuilt-main',
+        name: 'Nexus Rebuilt VIP Master',
+        description: 'Curated bouquet created with Nexus Rebuilder for TiviMate & OTT Navigator',
+        targetType: 'normal',
+        targetSourceOrCategory: 'all',
+        customCategories: {
+          'Nexus Sports HD': [],
+          'Nexus Movies & Cinema': [],
+          'Nexus Entertainment': [],
+          'Nexus 24x7 News': [],
+        },
+        enableChannelNumbering: true,
+        startChannelNumber: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+    this.save();
   }
 
   private save() {
@@ -135,6 +159,23 @@ class RebuildService {
       `# Description: ${p.description}`,
       `# Generated: ${new Date().toISOString()}`,
     ];
+
+    const totalExplicitChannels = Object.values(p.customCategories).reduce((acc, curr) => acc + curr.length, 0);
+    if (totalExplicitChannels === 0 && allChannels.length > 0) {
+      for (const ch of allChannels.slice(0, 150)) {
+        const text = `${ch.name} ${ch.groupTitle || ''}`.toLowerCase();
+        let targetCat = 'Nexus Entertainment';
+        if (text.includes('sport') || text.includes('cricket') || text.includes('ten') || text.includes('football')) {
+          targetCat = 'Nexus Sports HD';
+        } else if (text.includes('cinema') || text.includes('movie') || text.includes('action')) {
+          targetCat = 'Nexus Movies & Cinema';
+        } else if (text.includes('news')) {
+          targetCat = 'Nexus 24x7 News';
+        }
+        if (!p.customCategories[targetCat]) p.customCategories[targetCat] = [];
+        p.customCategories[targetCat].push(ch.id);
+      }
+    }
 
     const channelMap = new Map(allChannels.map((c) => [c.id, c]));
     let chnoCounter = typeof p.startChannelNumber === 'number' ? p.startChannelNumber : 1;
